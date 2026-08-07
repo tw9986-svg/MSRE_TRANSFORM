@@ -7,8 +7,8 @@ package MSRE "Molten-Salt Reactor Experiment (MSRE) system model built on the TR
   import Modelica.Constants.pi;
 
   annotation (
-    uses(Modelica(version="4.1.0"), TRANSFORM(version="1.0")),
-    version="0.2.1",
+    uses(Modelica(version="4.1.0"), TRANSFORM(version="1.1")),
+    version="0.2.2",
     Icon(coordinateSystem(preserveAspectRatio=false)),
     Documentation(info="<html>
 <p>A one-dimensional, coupled neutronic / thermal-hydraulic model of the Molten-Salt
