@@ -125,3 +125,10 @@ Two specific gaps are worth knowing about before using results from this model:
 - `rho_CR_pcm` — control rod reactivity in pcm, the measured quantity of the two pump tests.
 - `Beta_eff` — effective delayed neutron fraction from paper Eq. 6.
 - `tau_core`, `tau_loop` — fuel salt transit times, for comparison against the reported values.
+
+## License
+
+BSD 3-Clause — see [LICENSE](LICENSE).
+
+The Modelica Standard Library and TRANSFORM are separate works under their own
+licenses; this repository contains neither and only depends on them.
