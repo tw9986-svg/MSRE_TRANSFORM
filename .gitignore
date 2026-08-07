@@ -1,0 +1,56 @@
+# ---------------------------------------------------------------------------
+# Dymola simulation artefacts
+# Written into the working directory on every translate/simulate.
+# ---------------------------------------------------------------------------
+dsin.txt
+dsfinal.txt
+dsfinal.mat
+dsres.mat
+dsres.sav
+dslog.txt
+dsmodel.c
+dsmodel_fmuconf.h
+dsu.txt
+dymosim
+dymosim.exe
+dsbuild.bat
+dsbuild.sh
+buildlog.txt
+*.mof
+
+# Dymola inter-process signalling files
+.simulation
+request.
+status.
+success.
+failure.
+stop
+
+# ---------------------------------------------------------------------------
+# Simulation results and exported models
+# ---------------------------------------------------------------------------
+*.mat
+*.fmu
+*.csv
+
+# ---------------------------------------------------------------------------
+# Modelica / OpenModelica
+# ---------------------------------------------------------------------------
+*.bak-mo
+*.mo.bak
+~*.mo
+*.log
+
+# OpenModelica leaves a per-model build directory behind
+*.libs
+*.makefile
+OMEdit/
+
+# ---------------------------------------------------------------------------
+# Editors and OS
+# ---------------------------------------------------------------------------
+*~
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
