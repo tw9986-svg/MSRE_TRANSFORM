@@ -61,7 +61,7 @@ On top of that:
 | `Functions` | `driftReactivity` (paper Eq. 8), `coreCellVolumes`, `corePowerShape`. |
 | `ClosureRelations` | `Nus_MoltenSalt` — Nusselt correlation for the molten-salt channels. |
 | `Nuclear` | `PointKinetics_DNPtransport` — the modified point-kinetics model. |
-| `Components` | `SaltPipe`, `CoreChannel`, `ReactorCore`, `FuelPump`. |
+| `Components` | `SaltPipe`, `CoreChannel`, `ReactorCore`, `FuelPump` (shaft speed solved from the rotor angular momentum equation). |
 | `Systems` | `PrimarySystem` — the complete primary loop, with the secondary side of the heat exchanger imposed as a boundary condition. |
 | `Experiments` | The three benchmark transients. |
 | `Verification` | Self-checking models that assert against analytic results. |
@@ -80,12 +80,25 @@ by the kinetics.
 |---|---|---|
 | `PumpStartup` | 4.1 | ~100 W, 908 K isothermal, fuel pump started from rest and brought to rated flow in about 10 s. The flux servo holds the reactor critical, so rod reactivity *is* the flow-induced reactivity change. |
 | `PumpCoastdown` | 4.2 | The inverse test. Starts at rated 168 kg/s and trips the pump; precursors dwell longer in the core, `Beta_eff` recovers toward the static value, and positive reactivity is inserted. |
+
+Both pump tests take a `use_rotorDynamics` switch. Set (the default), the input is a motor step
+and the shaft speed is solved from `J·dω/dt = τ_motor − τ_hyd − τ_fric`, so one `tau_shaft`
+produces the startup (`ω = ω_n·tanh(t/τ)`) and the coastdown (`ω = ω₀/(1 + t/τ)`) alike. Cleared,
+the shaft speed is imposed as a fitted function of time, which is what the model did before the
+rotor was added and needs two unrelated constants — 3.4 s and 4.0 s — for one physical rotor.
+The switch exists to be flipped: running a test both ways separates the pump model's contribution
+from the precursor transport's. Report results from the rotor form.
 | `NaturalCirculation` | 4.3 | U-233 fuel, pump stopped, driven by a change in heat removal on the secondary side. See the caveat below. |
 
 ## Verification
 
-Two models check the physics without needing any measurement:
+Three models check the physics without needing any measurement:
 
+- **`Steady_LoopBalance`** — runs the loop at rated pump speed and asserts what must hold if the
+  hydraulics are solved correctly: the elevation rises sum to zero, the pump and the core pass
+  the same flow, the 15 parallel rings split it evenly, no ring has reversed, the pump delivers
+  the rated flow, and the fuel channels stay laminar. The first four cannot be made to pass by
+  choosing an input; the last two are calibration checks and are warnings.
 - **`Analytic_DriftReactivity`** — asserts `driftReactivity` against the paper's Eq. 8 values:
   228.4 pcm at the reported transit times, the resulting circulating `Beta_eff` of about 0.0045
   against the static 0.00678, and the natural-circulation values at 1.46 and 4.45 kg/s.
