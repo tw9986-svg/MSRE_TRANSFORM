@@ -8,7 +8,7 @@ package MSRE "Molten-Salt Reactor Experiment (MSRE) system model built on the TR
 
   annotation (
     uses(Modelica(version="4.1.0"), TRANSFORM(version="1.1")),
-    version="0.2.2",
+    version="0.3.0",
     Icon(coordinateSystem(preserveAspectRatio=false)),
     Documentation(info="<html>
 <p>A one-dimensional, coupled neutronic / thermal-hydraulic model of the Molten-Salt
@@ -53,6 +53,10 @@ so that the simulated asymptotic reactivity loss can be checked against it
 <li><a href=\"modelica://MSRE.Systems\">Systems</a> - the complete primary + secondary boundary system model.</li>
 <li><a href=\"modelica://MSRE.Experiments\">Experiments</a> - the three benchmark transients:
 pump startup, pump coastdown and natural circulation.</li>
+<li><a href=\"modelica://MSRE.Functions\">Functions</a> - paper Eq. 8 and its counterpart for the
+upwind mesh the fluid model actually solves.</li>
+<li><a href=\"modelica://MSRE.Verification\">Verification</a> - self-checking models that assert
+against analytic results and need no measured data.</li>
 </ul>
 
 <h4>Status of the input data</h4>

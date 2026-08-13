@@ -6,13 +6,14 @@ model Analytic_DriftReactivity
   parameter MSRE.Data.PrecursorGroups.U235_6group pg235 "U-235 precursor data (paper Table 1)";
   parameter MSRE.Data.PrecursorGroups.U233_6group pg233 "U-233 precursor data (paper Table 2)";
   parameter MSRE.Data.Geometry geometry "Plant geometry";
+  parameter MSRE.Data.BenchmarkTargets targets "Values reported by the paper";
 
   parameter SIadd.NonDim tol=5e-6
     "Absolute tolerance on reactivity [-], 5e-6 = 0.5 pcm";
 
   /* --- 1. Forced circulation, U-235, at the transit times the paper reports ------- */
-  final parameter SI.Time tau_C_paper=9.56 "Core transit time reported by the paper";
-  final parameter SI.Time tau_L_paper=16.14 "Loop transit time reported by the paper";
+  final parameter SI.Time tau_C_paper=targets.tau_C "Core transit time reported by the paper";
+  final parameter SI.Time tau_L_paper=targets.tau_L "Loop transit time reported by the paper";
   final parameter SIadd.NonDim drho_forced=MSRE.Functions.driftReactivity(
       pg235.alphas*pg235.Beta,
       pg235.lambdas,
@@ -27,8 +28,9 @@ model Analytic_DriftReactivity
 
   /* --- 3. Natural circulation, U-233, at the two flow rates of paper Fig. 10 ------ */
   parameter SI.Density d_fuel=2055.2 "Fuel salt density at 922 K, the U-233 test temperature";
-  parameter SI.MassFlowRate m_flow_lo=1.46 "Flow at the start of the natural circulation test";
-  parameter SI.MassFlowRate m_flow_hi=4.45 "Flow at 21000 s";
+  parameter SI.MassFlowRate m_flow_lo=targets.m_flow_NC_start
+    "Flow at the start of the natural circulation test";
+  parameter SI.MassFlowRate m_flow_hi=targets.m_flow_NC_end "Flow at 21000 s";
 
   final parameter SIadd.NonDim drho_lo=MSRE.Functions.driftReactivity(
       pg233.alphas*pg233.Beta,
@@ -47,16 +49,17 @@ model Analytic_DriftReactivity
   final parameter Real drho_hi_pcm=drho_hi*1e5 "[pcm]";
 
 equation
-  assert(abs(drho_forced - 228.4e-5) < tol, "Eq. 8 at the reported transit times gives "
+  assert(abs(drho_forced - 1e-5*targets.rho_asymptote_Eq8_pcm) < tol, "Eq. 8 at the reported transit times gives "
      + String(drho_forced_pcm) + " pcm, but the paper quotes 228.4 pcm from the same equation.
 Either driftReactivity or the Table 1 data has been changed.", AssertionLevel.error);
 
-  assert(abs(Beta_circulating - 0.0045) < 1e-4, "Beta_eff with the fuel circulating comes out
+  assert(abs(Beta_circulating - targets.Beta_circulating_U235) < 1e-4, "Beta_eff with the fuel circulating comes out
 at " + String(Beta_circulating) + ", against the MSRE value of about 0.0045 (0.00678 static).
 This ratio is one of the best established numbers about the MSRE; a deviation means the
 precursor data or Eq. 8 is wrong.", AssertionLevel.error);
 
-  assert(abs(drho_lo - 0.9e-5) < 2e-6 and abs(drho_hi - 6.7e-5) < 5e-6, "Drift reactivity over
+  assert(abs(drho_lo - 1e-5*targets.drho_NC_start_pcm) < 2e-6 and abs(drho_hi - 1e-5*targets.drho_NC_end_pcm)
+     < 5e-6, "Drift reactivity over
 the natural circulation transient comes out at " + String(drho_lo_pcm) + " and "
      + String(drho_hi_pcm) + " pcm, against the 0.9 and 6.7 pcm the paper reports in Section 4.3.
 These follow from V_core and V_loop, so this also checks that the calibrated geometry still
