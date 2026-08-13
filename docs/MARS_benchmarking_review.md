@@ -1,9 +1,14 @@
 # MARS-KS 벤치마킹 잔재에 대한 비판적 검토
 
 **대상**: 이 저장소의 `MSRE` 패키지 (v0.2.2)
-**대조군 1 (벤치마킹 원본)**: J.J. Jeong et al., *Benchmarking the MARS code for MSR applications using MSRE transient experiments*, NET 58 (2026) 104438 — 이하 **MARS 논문**
-**대조군 2 (TRANSFORM 선행연구)**: L. Fischer, L. Bureš, *Application of Modelica/TRANSFORM to system modeling of the MSRE*, NED 416 (2024) 112768 — 이하 **Fischer**
-**대조군 3**: TRANSFORM-Library (ORNL-Modelica), 실제 소스 대조 완료
+**벤치마킹 대상 (수치 대조·통과 판정 기준)**: J.J. Jeong et al., *Benchmarking the MARS code for MSR applications using MSRE transient experiments*, NET 58 (2026) 104438 — 이하 **MARS 논문**
+**구현 참고용 (수치 대조 대상 아님)**: L. Fischer, L. Bureš, *Application of Modelica/TRANSFORM to system modeling of the MSRE*, NED 416 (2024) 112768 — 이하 **Fischer**
+**구현 참고용**: TRANSFORM-Library (ORNL-Modelica), 실제 소스 대조 완료
+
+> **스코프 주의.** 이 문서에서 Fischer 를 인용한 부분은 전부 *구현 참고*이며, Fischer 의 수치와
+> 본 모델의 결과가 다르다는 사실만으로 통과·불통과를 판정하지 않는다. 통과 판정 기준은
+> [`benchmark_scope.md`](benchmark_scope.md) 에만 있다. 특히 §C1–C6 의 "권고: Fischer" 는
+> *배선·방법론을 참고하라*는 뜻이지 *Fischer 의 값에 맞추라*는 뜻이 아니다.
 
 ---
 
