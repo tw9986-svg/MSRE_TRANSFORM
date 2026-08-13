@@ -259,9 +259,9 @@ model PrimarySystem
             geometry.nHX,
             1)),
     redeclare model HeatTransfer_tube = MSRE.ClosureRelations.Nus_MoltenSalt,
-    redeclare model InternalTraceGen_shell =
-        TRANSFORM.Fluid.ClosureRelations.InternalTraceGeneration.Models.DistributedVolume_Trace_1D.GenericTraceGeneration
-        (mC_gens=mC_gens_hxShell),
+    redeclare model InternalTraceGen_shell = MSRE.ClosureRelations.PrecursorDecay (
+        nParallel=1,
+        lambdas=data_PG.lambdas),
     redeclare model Geometry =
         TRANSFORM.Fluid.ClosureRelations.Geometry.Models.DistributedVolume_1D.HeatExchanger.StraightPipeHX
         (
@@ -293,10 +293,6 @@ model PrimarySystem
     exposeState_a_tube=true,
     exposeState_b_tube=false) "Fuel to coolant salt heat exchanger, fuel on the shell side"
     annotation (Placement(transformation(extent={{-10,0},{10,20}})));
-
-  SIadd.ExtraPropertyFlowRate mC_gens_hxShell[geometry.nHX,nC]={{-data_PG.lambdas[j]*hx.shell.mCs[
-      i, j] for j in 1:nC} for i in 1:geometry.nHX}
-    "Precursor decay inside the heat exchanger shell";
 
   TRANSFORM.Fluid.BoundaryConditions.MassFlowSource_T coolantInlet(
     redeclare package Medium = Medium_coolant,
@@ -438,8 +434,11 @@ the tube outlet, so the radiator is not modelled.</p>
 <p>The six precursor groups are trace substances of <code>Medium_fuel</code>. Every fuel salt
 component is a <a href=\"modelica://MSRE.Components.SaltPipe\">SaltPipe</a>, or in the core a
 <a href=\"modelica://MSRE.Components.CoreChannel\">CoreChannel</a>, and each applies its local
-decay term; the fission production term is supplied by the kinetics model to the core cells
-only. The heat-exchanger shell gets its decay term through <code>mC_gens_hxShell</code>.
+decay term through the
+<a href=\"modelica://MSRE.ClosureRelations.PrecursorDecay\">PrecursorDecay</a> closure; the
+fission production term is supplied by the kinetics model to the core cells only. The
+heat-exchanger shell redeclares the same closure with no source term, so the decay term is no
+longer written out at system level.
 Precursors are therefore transported and decay over the whole primary system, which is what
 paper Eq. 3 requires and what distinguishes this formulation from a core-plus-single-loop
 model.</p>

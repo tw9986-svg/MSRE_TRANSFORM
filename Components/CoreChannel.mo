@@ -87,9 +87,10 @@ model CoreChannel
     redeclare model InternalHeatGen =
         TRANSFORM.Fluid.ClosureRelations.InternalVolumeHeatGeneration.Models.DistributedVolume_1D.GenericHeatGeneration
         (Q_gens=Q_gens),
-    redeclare model InternalTraceGen =
-        TRANSFORM.Fluid.ClosureRelations.InternalTraceGeneration.Models.DistributedVolume_Trace_1D.GenericTraceGeneration
-        (mC_gens=mC_gens_total),
+    redeclare model InternalTraceGen = MSRE.ClosureRelations.PrecursorDecay (
+        nParallel=nParallel,
+        lambdas=lambdas,
+        mC_sources=mC_sources),
     p_a_start=p_a_start,
     T_a_start=T_a_start,
     T_b_start=T_b_start,
@@ -133,9 +134,6 @@ model CoreChannel
     annotation (Placement(transformation(extent={{40,40},{60,60}})));
 
   /* ---------------- Summary quantities used by the kinetics ---------------- */
-  SIadd.ExtraPropertyFlowRate mC_gens_total[nV,Medium.nC]={{mC_sources[i, j] - lambdas[j]*
-      pipe.mCs[i, j]*nParallel for j in 1:Medium.nC} for i in 1:nV}
-    "Right hand side of the precursor transport equation (production minus decay)";
   SIadd.ExtraPropertyExtrinsic mCs[nV,Medium.nC]=pipe.mCs*nParallel
     "# of precursors of each group in each axial node of this ring";
   SI.Volume Vs[nV]=pipe.geometry.Vs*nParallel "Fuel salt volume of each axial node";

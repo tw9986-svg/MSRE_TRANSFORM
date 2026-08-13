@@ -84,9 +84,10 @@ model SaltPipe
     redeclare model InternalHeatGen =
         TRANSFORM.Fluid.ClosureRelations.InternalVolumeHeatGeneration.Models.DistributedVolume_1D.GenericHeatGeneration
         (Q_gens=Q_gens),
-    redeclare model InternalTraceGen =
-        TRANSFORM.Fluid.ClosureRelations.InternalTraceGeneration.Models.DistributedVolume_Trace_1D.GenericTraceGeneration
-        (mC_gens=mC_gens_total),
+    redeclare model InternalTraceGen = MSRE.ClosureRelations.PrecursorDecay (
+        nParallel=1,
+        lambdas=lambdas,
+        mC_sources=mC_sources),
     p_a_start=p_a_start,
     T_a_start=T_a_start,
     T_b_start=T_b_start,
@@ -98,9 +99,6 @@ model SaltPipe
     annotation (Placement(transformation(extent={{-10,-10},{10,10}})));
 
   /* ---------------- Summary ---------------- */
-  SIadd.ExtraPropertyFlowRate mC_gens_total[nV,Medium.nC]={{mC_sources[i, j] - lambdas[j]*
-      pipe.mCs[i, j] for j in 1:Medium.nC} for i in 1:nV}
-    "Right hand side of the precursor transport equation (production minus decay)";
   SIadd.ExtraPropertyExtrinsic mCs[nV,Medium.nC]=pipe.mCs
     "# of precursors of each group in each node";
   SI.Volume Vs[nV]=pipe.geometry.Vs "Fluid volume of each node";
@@ -128,8 +126,9 @@ equation
     Documentation(info="<html>
 <p>A thin wrapper around <code>TRANSFORM.Fluid.Pipes.GenericPipe_MultiTransferSurface</code>
 that is parameterized by <b>volume and length</b> rather than diameter, because the MSRE
-nodalization is defined by fuel-salt volumes, and that automatically applies the decay term
-of the precursor transport equation,</p>
+nodalization is defined by fuel-salt volumes, and that applies the decay term of the precursor
+transport equation through the
+<a href=\"modelica://MSRE.ClosureRelations.PrecursorDecay\">PrecursorDecay</a> closure,</p>
 
 <p><code>mC_gens[i,j] = mC_sources[i,j] - lambda_j*mC[i,j]</code></p>
 
