@@ -14,8 +14,8 @@ overturns an earlier finding, add a new entry that says so.
 ## Phase 1 — Pump rotor dynamics and per-ring flow resistance
 
 **Branches:** `claude/msre-benchmarking-architecture-i35tb0` (PR #5, merged),
-`phase1/pump-init-fix` (follow-up). `phase1/pump-consolidation` (PR #6) was an abandoned
-attempt — see decision 5.
+`phase1/pump-init-fix` (PR #7, follow-up). `phase1/pump-consolidation` (PR #6) was an
+abandoned attempt — see decision 5.
 **Status:** implemented, compiles in Dymola. Simulation results not yet recorded.
 
 ### Decisions taken
