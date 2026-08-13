@@ -20,6 +20,7 @@ model PumpCoastdown "MSRE pump coastdown test (paper Section 4.2)"
     t_null=t_null,
     use_servoControl=true,
     m_flow_start=m_flow_rated,
+    N_pump_start=N_rated,
     T_coolant_start=T_start) "MSRE primary system"
     annotation (Placement(transformation(extent={{-20,-20},{20,20}})));
 
