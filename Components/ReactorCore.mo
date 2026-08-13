@@ -38,6 +38,12 @@ model ReactorCore
   parameter SI.Length L_upperPlenum=0.30 "Upper plenum height";
   parameter SI.Length dz_upperPlenum=L_upperPlenum "Elevation rise across the upper plenum";
 
+  /* ---------------- Ring form losses ---------------- */
+  parameter Real K_channelInlet[nRings]=zeros(nRings)
+    "Form loss coefficient at the inlet of each ring, per channel";
+  parameter Real K_channelExit[nRings]=zeros(nRings)
+    "Form loss coefficient at the exit of each ring, per channel";
+
   final parameter Integer nCh=nRings*nAxial "# of channel cells";
   final parameter Integer nV_core=nCh + 2
     "# of core cells seen by the kinetics: channel cells plus one lower and one upper plenum cell";
@@ -94,6 +100,21 @@ model ReactorCore
   SI.Volume Vs_channelCells[nCh] "Fuel salt volume of each channel cell";
   SI.Mass m_graphite=sum(channels.m_graphite) "Total graphite mass in the active core";
 
+  /* ---------------- Flow split across the parallel rings ---------------- */
+  SI.MassFlowRate m_flow_inlet=port_a.m_flow "Mass flow rate entering the reactor vessel";
+  SI.MassFlowRate m_flows_rings[nRings]={channels[r].m_flow_ring for r in 1:nRings}
+    "Mass flow rate through each ring";
+  SI.MassFlowRate m_flow_channels=sum(m_flows_rings)
+    "Mass flow rate through the channel region, summed over all rings";
+  SIadd.NonDim f_flowSplit[nRings]={m_flows_rings[r]/max(abs(m_flow_channels), 1e-9) for r in
+          1:nRings} "Fraction of the channel-region flow carried by each ring";
+  final parameter SIadd.NonDim f_flowSplit_uniform=1/nRings
+    "Flow fraction each ring would carry if the split were exactly even";
+  SIadd.NonDim err_flowSplit=max({abs(f_flowSplit[r] - f_flowSplit_uniform) for r in 1:nRings})
+      /f_flowSplit_uniform "Largest relative departure of any ring from an even flow split";
+  SIadd.NonDim Re_rings[nRings]={channels[r].Re for r in 1:nRings}
+    "Channel Reynolds number of each ring";
+
   /* ---------------- Components ---------------- */
   MSRE.Components.SaltPipe lowerPlenum(
     redeclare package Medium = Medium,
@@ -128,6 +149,8 @@ model ReactorCore
     Q_gens=Qs_channels,
     Q_gens_graphite=Qs_channels_graphite,
     mC_sources=mC_sources_channels,
+    K_inlet=K_channelInlet,
+    K_exit=K_channelExit,
     each lambdas=lambdas,
     each p_a_start=p_start,
     each T_a_start=T_start,
@@ -250,8 +273,28 @@ rest of the upper plenum, is reproduced here by increasing
 <code>V_upperPlenum</code> while reducing an equal loop volume, so that the core
 transit time grows and the loop transit time shrinks by the same amount.</p>
 
+<h4>How the flow divides between the rings</h4>
 <p>The channel groups are connected in parallel between the two plena. The plena expose their
 state at the junctions and the channels do not, which is what makes the parallel connection
-well posed.</p>
+well posed: each ring sees the same two pressures and solves for its own mass flow rate, so
+there are <code>nRings</code> independent flow states and no algebraic loop between them.</p>
+
+<p>Because every ring has the same channel geometry, the split is even unless something breaks
+the symmetry. Two things can:</p>
+<ol>
+<li><code>K_channelInlet</code> and <code>K_channelExit</code>, the form losses of the two
+plenum junctions, which are the only per-ring hydraulic parameters in the model. Both default
+to zero. Setting them requires the MSRE channel flow measurements (Kedl, ORNL-TM-3229); they
+are not derivable from the geometry in this record.</li>
+<li>The viscosity, through the fuel salt temperature. The channel flow is laminar
+(<code>Re</code> is about 825 at rated flow), so this acts on the flow split directly, and no
+coefficient has to be set for it to act.</li>
+</ol>
+
+<p><code>f_flowSplit</code> reports the fraction carried by each ring and
+<code>err_flowSplit</code> its largest relative departure from <code>1/nRings</code>. With zero
+form losses and an isothermal core the second should be at solver tolerance; that is the check
+that the parallel connection is doing what it is supposed to, and
+<a href=\"modelica://MSRE.Verification.Steady_LoopBalance\">Steady_LoopBalance</a> asserts it.</p>
 </html>"));
 end ReactorCore;

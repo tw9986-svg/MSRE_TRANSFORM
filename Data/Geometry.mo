@@ -31,6 +31,8 @@ record Geometry "MSRE nodalization and geometry (Modelica counterpart of the MAR
   parameter SI.Temperature T_zeroPower=908
     "Fuel salt temperature of the zero-power pump tests";
   parameter SI.AbsolutePressure p_system=1.5e5 "System pressure set by the expansion tank";
+  parameter SI.Density d_fuel_ref=2063.1
+    "Fuel salt density at T_zeroPower. Only used for the derived quantities reported by this record; the system model evaluates the density from the medium itself";
 
   /* ------------------------------------------------------------------
      Fuel channels (graphite-moderated core region)
@@ -72,6 +74,16 @@ record Geometry "MSRE nodalization and geometry (Modelica counterpart of the MAR
   parameter Real f_axialExtrapolation=1.2
     "Axial extrapolation factor of the cosine profile (1 = chopped at the core boundary)";
 
+  /* Per-ring form losses at the two plenum junctions. These are the only parameters in the
+     whole record that can make one ring carry a different flow from another; everything else
+     about the 1140 channels is identical by construction. They are left at zero because the
+     coefficients that would reproduce the measured MSRE channel flow distribution have not
+     been extracted from Kedl (ORNL-TM-3229) yet. See MSRE.Components.ReactorCore. */
+  parameter Real K_channelInlet[nRings]=zeros(nRings)
+    "Form loss coefficient where each ring leaves the lower plenum, per channel";
+  parameter Real K_channelExit[nRings]=zeros(nRings)
+    "Form loss coefficient where each ring enters the upper plenum, per channel";
+
   /* ------------------------------------------------------------------
      Reactor vessel plena and downcomer
      ------------------------------------------------------------------ */
@@ -99,6 +111,25 @@ record Geometry "MSRE nodalization and geometry (Modelica counterpart of the MAR
   parameter Real N_pump_nominal(unit="1/min") = 1160 "Rated fuel pump speed";
   parameter Real headRatio_shutoff=1.25
     "Ratio of shut-off head to rated head of the fuel pump";
+  parameter SI.Efficiency eta_pump=0.8 "Fuel pump isentropic efficiency";
+
+  /* Fuel pump rotor. Used by MSRE.Components.FuelPump_Dynamics, which integrates
+     J*der(omega) = tau_motor - tau_hyd - tau_fric. The rated hydraulic torque follows from the
+     rated duty and is not free. The one fitted number is tau_pump_shaft, from which J_pump
+     follows; the two are the same degree of freedom, and it is the counterpart of the moment
+     of inertia the paper tunes. */
+  final parameter SI.VolumeFlowRate V_flow_pump_nominal=m_flow_nominal/d_fuel_ref
+    "Rated fuel pump volumetric flow rate";
+  final parameter SI.AngularVelocity omega_pump_nominal=2*pi*N_pump_nominal/60
+    "Rated fuel pump angular velocity";
+  final parameter SI.Power P_pump_hydraulic=dp_pump_nominal*V_flow_pump_nominal
+    "Rated fuel pump hydraulic power (24.4 kW, 32.8 hp)";
+  final parameter SI.Torque tau_pump_hyd_nominal=P_pump_hydraulic/(omega_pump_nominal*
+      eta_pump) "Rated fuel pump hydraulic torque (251 N.m)";
+  parameter SI.Time tau_pump_shaft=4.0
+    "Fuel pump shaft time constant; sets the startup and the coastdown transient together";
+  final parameter SI.MomentOfInertia J_pump=tau_pump_shaft*tau_pump_hyd_nominal/
+      omega_pump_nominal "Fuel pump rotor moment of inertia (8.28 kg.m2)";
 
   parameter Real K_pumpInlet=1.75 "Form loss coefficient at the fuel pump inlet";
   parameter Real K_pumpExit=1.75 "Form loss coefficient at the fuel pump exit";
@@ -148,6 +179,28 @@ record Geometry "MSRE nodalization and geometry (Modelica counterpart of the MAR
        + V_downcomer "Fuel salt volume of the external loop";
   final parameter SI.Volume V_total=V_core + V_loop "Circulating fuel salt volume";
 
+  final parameter SI.Time tau_core_nominal=V_core*d_fuel_ref/m_flow_nominal
+    "Core transit time at rated flow (paper: 9.56 s)";
+  final parameter SI.Time tau_loop_nominal=V_loop*d_fuel_ref/m_flow_nominal
+    "External loop transit time at rated flow (paper: 16.14 s)";
+  final parameter SI.Time tau_system_nominal=tau_core_nominal + tau_loop_nominal
+    "System transit time at rated flow (paper: 25.63 s, measured 25.2 s)";
+
+  /* The circulating inventory the reported transit times actually pin down. tau*m_flow is a
+     mass and does not involve the density at all, so these three numbers are the density
+     independent content of the benchmark, and the volumes above are only their consequence
+     once a density correlation has been chosen. */
+  final parameter SI.Mass m_fuel_core=tau_core_nominal*m_flow_nominal
+    "Fuel salt mass in the reactor core";
+  final parameter SI.Mass m_fuel_loop=tau_loop_nominal*m_flow_nominal
+    "Fuel salt mass in the external loop";
+  final parameter SI.Mass m_fuel_total=m_fuel_core + m_fuel_loop
+    "Circulating fuel salt mass";
+
+  final parameter SI.Length dz_closure=dz_lowerPlenum + dz_channels + dz_upperPlenum +
+      dz_outletPipe + dz_pumpBowl + dz_pumpToHX + dz_hxShell + dz_hxToVessel + dz_downcomer
+    "Sum of all elevation rises around the loop, which must be zero";
+
   annotation (defaultComponentName="geometry", Documentation(info="<html>
 <h4>Where the numbers come from</h4>
 <p>Documented MSRE hardware dimensions are used wherever they are available:
@@ -177,5 +230,41 @@ paper's sensitivity cases can be run directly:</p>
 <li>case C1: <code>f_area_hx = 1.10</code></li>
 <li>case C2: <code>K_pumpInlet = K_pumpExit = 0.5</code></li>
 </ul>
+
+<h4>Fuel pump rotor</h4>
+<p><code>MSRE.Components.FuelPump_Dynamics</code> integrates the rotor angular momentum
+equation, and the parameters it needs are collected here. Only one of them is free:</p>
+<table border=\"1\">
+<tr><th>Parameter</th><th>Value</th><th>Fixed by</th></tr>
+<tr><td><code>P_pump_hydraulic</code></td><td>24.4 kW</td>
+    <td>the rated duty, 3.0 bar at 168 kg/s</td></tr>
+<tr><td><code>tau_pump_hyd_nominal</code></td><td>251 N.m</td>
+    <td>that power, <code>N_pump_nominal</code> and <code>eta_pump</code></td></tr>
+<tr><td><code>tau_pump_shaft</code></td><td>4.0 s</td><td><b>fitted</b></td></tr>
+<tr><td><code>J_pump</code></td><td>8.28 kg.m2</td><td>follows from the two above</td></tr>
+</table>
+<p>The same <code>tau_pump_shaft</code> produces the startup and the coastdown, because with a
+hydraulic torque proportional to the square of the speed the rotor equation gives
+<code>tanh(t/tau)</code> when the motor is switched on and <code>1/(1+t/tau)</code> when it is
+switched off. At 4.0 s the startup reaches 98.7 % of rated flow in 10 s. The paper's
+sensitivity case with the moment of inertia halved is <code>tau_pump_shaft = 2.0</code>.</p>
+
+<h4>What the reported transit times do and do not constrain</h4>
+<p><code>tau_core_nominal</code> and <code>tau_loop_nominal</code> are calibration targets, but
+what they actually fix is a <b>mass</b>: <code>tau*m_flow</code> contains no density. The
+benchmark therefore pins the circulating inventory at</p>
+<table border=\"1\">
+<tr><td>core</td><td><code>m_fuel_core</code></td><td>1606 kg</td></tr>
+<tr><td>external loop</td><td><code>m_fuel_loop</code></td><td>2712 kg</td></tr>
+<tr><td>total</td><td><code>m_fuel_total</code></td><td>4306 kg</td></tr>
+</table>
+<p>and leaves the volume/density split of that mass undetermined. The volumes above were
+obtained by dividing those masses by <code>d_fuel_ref</code>, so changing the density
+correlation invalidates them and requires the volumes to be re-derived, not merely re-checked.
+This matters because the channel volume is <i>not</i> free: <code>V_channels</code> is
+0.7266 m3 from documented hardware alone (1140 channels of 1.626 m), and at 2249 kg/m3 - the
+density the ORNL-TM-4865 correlation gives at 908 K - a core holding 1606 kg would have a
+total volume of 0.714 m3, less than the channels by themselves. Any move to that correlation
+has to resolve that contradiction rather than absorb it into the plena.</p>
 </html>"));
 end Geometry;
