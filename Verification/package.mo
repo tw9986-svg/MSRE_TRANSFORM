@@ -31,12 +31,17 @@ measured boundary condition at all and refuses to run without one.</p>
     <td>the asymptotic control-rod reactivity of the pump startup transient against Eq. 8, and
         the reactivity oscillation period against the system transit time</td>
     <td>yes</td></tr>
+<tr><td><a href=\"modelica://MSRE.Verification.Steady_LoopBalance\">Steady_LoopBalance</a></td>
+    <td>elevation closure of the loop, mass balance between pump and core, an even flow split
+        between the 15 hydraulically identical rings, no reversed ring, and the laminar flow
+        regime the ring physics assumes</td>
+    <td>yes</td></tr>
 </table>
 
 <h4>Status</h4>
 <p><code>Analytic_DriftReactivity</code> has been evaluated numerically outside Modelica and
-its assertions pass with margin. <code>Transient_DriftReactivity</code> has never been run:
-no Modelica compiler was available while this library was written. Treat it as a stated
-acceptance criterion rather than as a result.</p>
+its assertions pass with margin. <code>Transient_DriftReactivity</code> and
+<code>Steady_LoopBalance</code> have never been run: no Modelica compiler was available while
+this library was written. Treat them as stated acceptance criteria rather than as results.</p>
 </html>"));
 end Verification;

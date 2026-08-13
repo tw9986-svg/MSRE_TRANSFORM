@@ -16,5 +16,22 @@ side boundary condition.</p>
 balance is frozen and the flow field and precursor distribution converge; the transient of
 interest starts at that instant. Plot against <code>msre.t_rel</code> rather than
 <code>time</code> so that the transient starts at zero.</p>
+
+<h4>Two ways of driving the pump</h4>
+<p>The two pump tests come in pairs. In
+<a href=\"modelica://MSRE.Experiments.PumpStartup\">PumpStartup</a> and
+<a href=\"modelica://MSRE.Experiments.PumpCoastdown\">PumpCoastdown</a> the shaft speed is
+prescribed as a fitted function of time. In
+<a href=\"modelica://MSRE.Experiments.PumpStartup_RotorDynamics\">PumpStartup_RotorDynamics</a>
+and
+<a href=\"modelica://MSRE.Experiments.PumpCoastdown_RotorDynamics\">PumpCoastdown_RotorDynamics</a>
+the input is a motor step and the speed is a state of the rotor angular momentum equation, as
+in the MARS model.</p>
+
+<p>The pair matters because the prescribed-speed models need two unrelated numbers for one
+rotor - 3.4 s for the startup, 4.0 s for the coastdown - while the rotor models take a single
+<code>tau_shaft</code> for both. Running the two versions of each test against each other
+separates what the pump model contributes from what the precursor transport contributes, which
+is the distinction the benchmark is about.</p>
 </html>"));
 end Experiments;

@@ -8,7 +8,7 @@ package MSRE "Molten-Salt Reactor Experiment (MSRE) system model built on the TR
 
   annotation (
     uses(Modelica(version="4.1.0"), TRANSFORM(version="1.1")),
-    version="0.2.2",
+    version="0.3.0",
     Icon(coordinateSystem(preserveAspectRatio=false)),
     Documentation(info="<html>
 <p>A one-dimensional, coupled neutronic / thermal-hydraulic model of the Molten-Salt
@@ -49,7 +49,8 @@ so that the simulated asymptotic reactivity loss can be checked against it
 <li><a href=\"modelica://MSRE.Media\">Media</a> - MSRE fuel salt and coolant salt property models.</li>
 <li><a href=\"modelica://MSRE.Data\">Data</a> - kinetics data (paper Tables 1-3) and the plant geometry record.</li>
 <li><a href=\"modelica://MSRE.Nuclear\">Nuclear</a> - the modified point-kinetics model.</li>
-<li><a href=\"modelica://MSRE.Components\">Components</a> - graphite-moderated fuel channel, fuel pump.</li>
+<li><a href=\"modelica://MSRE.Components\">Components</a> - graphite-moderated fuel channel, fuel pump
+(with the shaft speed either prescribed or solved from the rotor angular momentum equation).</li>
 <li><a href=\"modelica://MSRE.Systems\">Systems</a> - the complete primary + secondary boundary system model.</li>
 <li><a href=\"modelica://MSRE.Experiments\">Experiments</a> - the three benchmark transients:
 pump startup, pump coastdown and natural circulation.</li>
@@ -65,5 +66,26 @@ documented MSRE hardware dimensions where those are available (1140 fuel channel
 1.626 m active height, 16 in heat-exchanger shell, 163 tubes, 24.1 m2 heat-transfer area).
 Every one of these values is an exposed parameter. Items that are explicit estimates
 are marked in the record.</p>
+
+<p>Note what those transit times actually constrain. <code>tau*m_flow</code> is a mass, not a
+volume, so the benchmark fixes the circulating fuel salt inventory - 1606 kg in the core,
+2712 kg in the external loop - and leaves the split of that mass into a density and a volume
+open. The volumes in the record follow from dividing those masses by the density of
+<a href=\"modelica://MSRE.Media.FuelSalt\">MSRE.Media.FuelSalt</a> at 908 K. Changing the
+density correlation therefore invalidates the volumes rather than merely perturbing them, and
+the channel volume is not available to absorb the change because it is fixed by hardware
+(1140 channels of 1.626 m, 0.7266 m3).</p>
+
+<h4>What is still prescribed rather than solved</h4>
+<p>The fuel pump is available in two forms.
+<a href=\"modelica://MSRE.Components.FuelPump\">FuelPump</a> takes the shaft speed as a
+boundary condition, which requires a fitted speed law per test.
+<a href=\"modelica://MSRE.Components.FuelPump_Dynamics\">FuelPump_Dynamics</a> integrates
+<code>J*der(omega) = tau_motor - tau_hyd - tau_fric</code>, as the MARS model does, and
+recovers both the startup and the coastdown from one shaft time constant. The per-ring
+hydraulic resistances (<code>Geometry.K_channelInlet</code>,
+<code>Geometry.K_channelExit</code>) exist but are zero, because the MSRE channel flow
+measurements needed to set them have not been extracted; with them at zero the 15 rings are
+hydraulically identical and split the flow evenly.</p>
 </html>"));
 end MSRE;

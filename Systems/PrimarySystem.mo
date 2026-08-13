@@ -120,6 +120,8 @@ model PrimarySystem
     V_upperPlenum=geometry.V_upperPlenum,
     L_upperPlenum=geometry.L_upperPlenum,
     dz_upperPlenum=geometry.dz_upperPlenum,
+    K_channelInlet=geometry.K_channelInlet,
+    K_channelExit=geometry.K_channelExit,
     lambdas=data_PG.lambdas,
     f_graphiteHeating=f_graphiteHeating,
     Qs_core=kinetics.Qs,
@@ -193,15 +195,17 @@ model PrimarySystem
     "Pump bowl gas space: sets the system pressure and takes up the thermal expansion"
     annotation (Placement(transformation(extent={{68,-70},{48,-50}})));
 
-  MSRE.Components.FuelPump pump(
+  replaceable MSRE.Components.FuelPump pump constrainedby
+    MSRE.Components.BaseClasses.PartialFuelPump(
     redeclare package Medium = Medium_fuel,
     dp_nominal=geometry.dp_pump_nominal,
     m_flow_nominal=geometry.m_flow_nominal,
     d_nominal=density_ref,
     N_nominal=geometry.N_pump_nominal,
     headRatio_shutoff=geometry.headRatio_shutoff,
-    use_speedInput=true) "Fuel salt circulation pump"
-    annotation (Placement(transformation(extent={{74,0},{54,20}})));
+    eta_is=geometry.eta_pump,
+    use_speedInput=true) "Fuel salt circulation pump" annotation (choicesAllMatching=true,
+      Placement(transformation(extent={{74,0},{54,20}})));
 
   MSRE.Components.SaltPipe pumpToHX(
     redeclare package Medium = Medium_fuel,
@@ -375,6 +379,23 @@ model PrimarySystem
     "Fuel salt transit time through the reactor core";
   SI.Time tau_loop=geometry.V_loop*density_ref/max(abs(m_flow_fuel), 1e-3)
     "Fuel salt transit time through the external loop";
+  SI.Time tau_system=tau_core + tau_loop "Fuel salt transit time around the whole system";
+
+  /* Hydraulic consistency, reported so that MSRE.Verification.Steady_LoopBalance can assert
+     on it without reaching inside the component hierarchy. */
+  Real N_pump_actual(unit="1/min") = pump.N "Actual fuel pump shaft speed";
+  SI.MassFlowRate m_flow_pump=pump.m_flow "Mass flow rate through the fuel pump";
+  SI.MassFlowRate err_loopMassBalance=m_flow_pump - m_flow_fuel
+    "Difference between the pump and the core flow, zero at steady state";
+  SIadd.NonDim err_flowSplit=core.err_flowSplit
+    "Largest relative departure of any ring from an even flow split";
+  SIadd.NonDim f_flowSplit[geometry.nRings]=core.f_flowSplit
+    "Fraction of the channel flow carried by each ring";
+  SI.MassFlowRate m_flows_rings[geometry.nRings]=core.m_flows_rings
+    "Mass flow rate through each of the parallel fuel channel rings";
+  SIadd.NonDim Re_rings[geometry.nRings]=core.Re_rings
+    "Channel Reynolds number of each ring";
+  SI.PressureDifference dp_pump=pump.dp "Fuel pump pressure rise";
 
 equation
   connect(N_pump, pump.N_in)

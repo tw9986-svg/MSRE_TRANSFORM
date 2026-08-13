@@ -25,6 +25,14 @@ model CoreChannel
   parameter SI.Length r_graphite_outer=0.020503
     "Outer radius of the equivalent graphite annulus";
 
+  /* ---------------- Pressure loss ---------------- */
+  parameter Real K_inlet=0
+    "Form loss coefficient where this ring leaves the lower plenum, per channel";
+  parameter Real K_exit=0
+    "Form loss coefficient where this ring enters the upper plenum, per channel";
+  parameter Real K_distributed[nFM]=zeros(nFM)
+    "Additional form loss coefficient of each flow segment, per channel";
+
   /* ---------------- Inputs ---------------- */
   input SI.HeatFlowRate Q_gens[nV]=zeros(nV)
     "Fission power deposited in the fuel salt of this ring, summed over all its channels"
@@ -59,6 +67,16 @@ model CoreChannel
     annotation (Dialog(tab="Advanced", group="Model Structure"));
   parameter Boolean exposeState_b=false "=true, p is calculated at port_b else m_flow"
     annotation (Dialog(tab="Advanced", group="Model Structure"));
+  final parameter Integer nFM=if exposeState_a and exposeState_b then nV - 1 elseif not
+      exposeState_a and not exposeState_b then nV + 1 else nV "# of flow segments";
+
+  /* The endpoint form losses only have a flow segment to sit on when the corresponding port
+     does not carry the state. With the parallel-ring connection used by ReactorCore both
+     exposeState flags are false, so segment 1 is the lower plenum junction and segment nFM is
+     the upper plenum junction, which is exactly where the two coefficients belong. */
+  final parameter Real Ks[nFM]={K_distributed[i] + (if i == 1 and not exposeState_a then
+      K_inlet else 0) + (if i == nFM and not exposeState_b then K_exit else 0) for i in 1:nFM}
+    "Form loss coefficient of each flow segment";
 
   replaceable model HeatTransfer = MSRE.ClosureRelations.Nus_MoltenSalt constrainedby
     TRANSFORM.Fluid.ClosureRelations.HeatTransfer.Models.DistributedPipe_1D_MultiTransferSurface.PartialHeatTransfer_setT
@@ -84,6 +102,9 @@ model CoreChannel
         perimeters=fill(4*crossArea/dimension, nV),
         dlengths=fill(length/nV, nV),
         dheights=fill(dheight/nV, nV)),
+    redeclare model FlowModel =
+        TRANSFORM.Fluid.ClosureRelations.PressureLoss.Models.DistributedPipe_1D.SinglePhase_Developed_2Region_NumStable
+        (Ks_ab=Ks, Ks_ba=Ks),
     redeclare model InternalHeatGen =
         TRANSFORM.Fluid.ClosureRelations.InternalVolumeHeatGeneration.Models.DistributedVolume_1D.GenericHeatGeneration
         (Q_gens=Q_gens),
@@ -145,6 +166,17 @@ model CoreChannel
     "Mass averaged graphite temperature of each axial node";
   SI.Mass m_graphite=sum(graphite.ms)*nParallel "Graphite mass of this ring";
 
+  /* ---------------- Hydraulic summary, used by the loop balance checks ---------------- */
+  SI.MassFlowRate m_flow_ring=port_a.m_flow
+    "Mass flow rate entering the ring, all its channels together";
+  SI.MassFlowRate m_flow_channel=m_flow_ring/nParallel
+    "Mass flow rate of a single fuel channel of this ring";
+  SIadd.NonDim Re=abs(m_flow_channel)*dimension/(crossArea*Medium.dynamicViscosity(
+      Medium.setState_pTX(
+      pipe.mediums[1].p,
+      pipe.mediums[1].T,
+      Medium.X_default))) "Channel Reynolds number at the ring inlet";
+
 equation
   connect(port_a, pipe.port_a)
     annotation (Line(points={{-100,0},{-60,0},{-60,-40},{-10,-40}}, color={0,127,255}));
@@ -197,6 +229,30 @@ graphite acts as a passive heat reservoir. The paper identifies this as the main
 approximation to be removed in future work; here it is enough to give
 <code>Q_gens_graphite</code> a non-zero value to deposit a fraction of the fission energy
 directly in the moderator.</p>
+
+<h4>Ring form losses</h4>
+<p><code>K_inlet</code> and <code>K_exit</code> are the form loss coefficients of the two
+junctions where this ring leaves the lower plenum and enters the upper plenum. They are the
+only way one ring can be given a different hydraulic resistance from another, because every
+other quantity in the channel geometry is the same for all 1140 channels.</p>
+
+<p>Both default to zero, and that is a statement about the available data rather than about
+the reactor: MSRE channel-by-channel flow measurements exist (Kedl, ORNL-TM-3229) but the
+coefficients that would reproduce them have not been extracted here, and
+<a href=\"modelica://MSRE.Experiments\">the benchmark transients</a> are run at about 100 W,
+where the ring-to-ring temperature spread is under a microkelvin and the flow split is
+therefore not observable. Fischer et al. (2024) set the equivalent coefficients on their three
+radial groups against the same Kedl data; doing so here needs the measurements, not a change to
+this model.</p>
+
+<p>With all coefficients at zero and identical channel geometry, the rings are hydraulically
+identical and the flow divides evenly. The one mechanism that still redistributes flow is the
+temperature dependence of the viscosity: at the channel Reynolds number of about 825 the flow
+is laminar, so the pressure drop is proportional to the velocity, and
+<code>eta = 8.94e-5*exp(4092/T)</code> gives about -0.5 %/K. A ring running 10 K hotter than
+its neighbour therefore draws roughly 5 % more flow on its own, with no coefficient set by
+hand. <code>Re</code> is reported so that the laminar assumption behind that statement can be
+checked during a transient.</p>
 
 <h4>Quantities exported to the kinetics model</h4>
 <ul>
