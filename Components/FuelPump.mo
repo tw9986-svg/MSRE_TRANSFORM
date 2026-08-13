@@ -46,6 +46,9 @@ model FuelPump
   parameter Real N_start(unit="1/min") = 0
     "Shaft speed at the start of the simulation; used only with use_rotorDynamics=true"
     annotation (Dialog(tab="Initialization", enable=use_rotorDynamics));
+  parameter SI.MassFlowRate m_flow_start=0
+    "Mass flow rate at the start of the simulation. Only a start value, but the head curve is nonlinear in the flow, so it is the initial guess of an iteration"
+    annotation (Dialog(tab="Initialization"));
 
   /* ------------------------------------------------------------------
      Speed input
@@ -92,6 +95,18 @@ model FuelPump
   final parameter SI.Time tau_shaft_eff=J*omega_nominal/tau_hyd_nominal
     "Shaft time constant that actually results from J; equals tau_shaft unless J was overridden directly";
 
+  /* Start values of the hydraulic variables. The head curve is quadratic in the flow, so
+     V_flow is an iteration variable of the initialization problem; without these Dymola starts
+     it from zero, which is the wrong end of the range for any test that begins at rated flow. */
+  final parameter Real N_start_eff(unit="1/min") = if use_rotorDynamics then N_start else
+    N_nominal "Shaft speed assumed when forming the hydraulic start values";
+  final parameter SI.VolumeFlowRate V_flow_start=m_flow_start/d_nominal
+    "Start value of the volumetric flow rate";
+  final parameter SI.Height head_start=head_shutoff*(N_start_eff/N_nominal)^2 - R_pump*
+      V_flow_start*abs(V_flow_start) "Start value of the head";
+  final parameter SI.PressureDifference dp_start=d_nominal*Modelica.Constants.g_n*head_start
+    "Start value of the pressure rise";
+
   /* ------------------------------------------------------------------
      Variables
      ------------------------------------------------------------------ */
@@ -105,10 +120,10 @@ model FuelPump
   SI.Torque tau_net "Net accelerating torque on the shaft";
   SI.Power W_shaft "Shaft power delivered by the motor";
 
-  SI.MassFlowRate m_flow "Mass flow rate from port_a to port_b";
-  SI.VolumeFlowRate V_flow "Volumetric flow rate";
-  SI.PressureDifference dp "Pressure rise";
-  SI.Height head "Head";
+  SI.MassFlowRate m_flow(start=m_flow_start) "Mass flow rate from port_a to port_b";
+  SI.VolumeFlowRate V_flow(start=V_flow_start) "Volumetric flow rate";
+  SI.PressureDifference dp(start=dp_start) "Pressure rise";
+  SI.Height head(start=head_start) "Head";
   SI.Density d "Fuel salt density at the suction";
   SI.SpecificEnthalpy dh "Specific enthalpy rise across the pump";
   SI.Power W "Pumping power";

@@ -212,6 +212,7 @@ model PrimarySystem
     use_rotorDynamics=use_rotorDynamics,
     tau_shaft=geometry.tau_pump_shaft,
     N_start=N_pump_start,
+    m_flow_start=m_flow_start,
     use_speedInput=true) "Fuel salt circulation pump"
     annotation (Placement(transformation(extent={{74,0},{54,20}})));
 
@@ -450,6 +451,16 @@ equation
           textString="MSRE")}),
     Diagram(coordinateSystem(preserveAspectRatio=false, extent={{-100,-100},{120,100}})),
     Documentation(info="<html>
+<h4>This model is not meant to be simulated on its own</h4>
+<p>It is the plant, not an experiment. Two input connectors, <code>N_pump</code> and
+<code>T_coolant_in</code>, are left open for an experiment model to drive. Translating this
+model directly leaves them unconnected, so the fuel pump receives a demand of zero and the loop
+never starts, and the flow variables of the pump are then initialized from a guess that no
+longer matches any test. Simulate one of
+<a href=\"modelica://MSRE.Experiments\">MSRE.Experiments</a> or
+<a href=\"modelica://MSRE.Verification.Steady_LoopBalance\">Steady_LoopBalance</a> instead;
+they supply both inputs and set the initialization to match the transient they run.</p>
+
 <h4>Nodalization</h4>
 <p>The loop follows paper Fig. 2:</p>
 <pre>
