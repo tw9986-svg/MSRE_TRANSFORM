@@ -44,7 +44,13 @@ model PrimarySystem
   input SIadd.NonDim rho_external=0
     "Externally imposed reactivity (control rods); zero in all three benchmark tests";
 
+  parameter Boolean use_rotorDynamics=true
+    "=true: the fuel pump shaft speed is solved from the rotor angular momentum equation and N_pump is a motor torque demand; =false: N_pump is the shaft speed itself";
+
   parameter SI.MassFlowRate m_flow_start=0 "Initial fuel salt mass flow rate"
+    annotation (Dialog(tab="Initialization"));
+  parameter Real N_pump_start(unit="1/min") = 0
+    "Initial fuel pump shaft speed; used only with use_rotorDynamics=true"
     annotation (Dialog(tab="Initialization"));
   parameter SIadd.ExtraProperty C_start[nC]=zeros(nC)
     "Initial precursor concentration everywhere in the loop"
@@ -195,8 +201,7 @@ model PrimarySystem
     "Pump bowl gas space: sets the system pressure and takes up the thermal expansion"
     annotation (Placement(transformation(extent={{68,-70},{48,-50}})));
 
-  replaceable MSRE.Components.FuelPump pump constrainedby
-    MSRE.Components.BaseClasses.PartialFuelPump(
+  MSRE.Components.FuelPump pump(
     redeclare package Medium = Medium_fuel,
     dp_nominal=geometry.dp_pump_nominal,
     m_flow_nominal=geometry.m_flow_nominal,
@@ -204,8 +209,11 @@ model PrimarySystem
     N_nominal=geometry.N_pump_nominal,
     headRatio_shutoff=geometry.headRatio_shutoff,
     eta_is=geometry.eta_pump,
-    use_speedInput=true) "Fuel salt circulation pump" annotation (choicesAllMatching=true,
-      Placement(transformation(extent={{74,0},{54,20}})));
+    use_rotorDynamics=use_rotorDynamics,
+    tau_shaft=geometry.tau_pump_shaft,
+    N_start=N_pump_start,
+    use_speedInput=true) "Fuel salt circulation pump"
+    annotation (Placement(transformation(extent={{74,0},{54,20}})));
 
   MSRE.Components.SaltPipe pumpToHX(
     redeclare package Medium = Medium_fuel,
