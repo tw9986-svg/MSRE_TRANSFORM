@@ -113,7 +113,7 @@ record Geometry "MSRE nodalization and geometry (Modelica counterpart of the MAR
     "Ratio of shut-off head to rated head of the fuel pump";
   parameter SI.Efficiency eta_pump=0.8 "Fuel pump isentropic efficiency";
 
-  /* Fuel pump rotor. Used by MSRE.Components.FuelPump, which integrates
+  /* Fuel pump rotor. Used by MSRE.Components.FuelPump_Dynamics, which integrates
      J*der(omega) = tau_motor - tau_hyd - tau_fric. The rated hydraulic torque follows from the
      rated duty and is not free. The one fitted number is tau_pump_shaft, from which J_pump
      follows; the two are the same degree of freedom, and it is the counterpart of the moment
@@ -232,8 +232,8 @@ paper's sensitivity cases can be run directly:</p>
 </ul>
 
 <h4>Fuel pump rotor</h4>
-<p><code>MSRE.Components.FuelPump</code> integrates the rotor angular momentum equation, and the
-parameters it needs are collected here. Only one of them is free:</p>
+<p><code>MSRE.Components.FuelPump_Dynamics</code> integrates the rotor angular momentum
+equation, and the parameters it needs are collected here. Only one of them is free:</p>
 <table border=\"1\">
 <tr><th>Parameter</th><th>Value</th><th>Fixed by</th></tr>
 <tr><td><code>P_pump_hydraulic</code></td><td>24.4 kW</td>

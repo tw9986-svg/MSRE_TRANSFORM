@@ -44,13 +44,9 @@ model PrimarySystem
   input SIadd.NonDim rho_external=0
     "Externally imposed reactivity (control rods); zero in all three benchmark tests";
 
-  parameter Boolean use_rotorDynamics=true
-    "=true: the fuel pump shaft speed is solved from the rotor angular momentum equation and N_pump is a motor torque demand; =false: N_pump is the shaft speed itself";
-
   parameter SI.MassFlowRate m_flow_start=0 "Initial fuel salt mass flow rate"
     annotation (Dialog(tab="Initialization"));
-  parameter Real N_pump_start(unit="1/min") = 0
-    "Initial fuel pump shaft speed; used only with use_rotorDynamics=true"
+  parameter Real N_pump_start(unit="1/min") = 0 "Initial fuel pump shaft speed"
     annotation (Dialog(tab="Initialization"));
   parameter SIadd.ExtraProperty C_start[nC]=zeros(nC)
     "Initial precursor concentration everywhere in the loop"
@@ -201,7 +197,8 @@ model PrimarySystem
     "Pump bowl gas space: sets the system pressure and takes up the thermal expansion"
     annotation (Placement(transformation(extent={{68,-70},{48,-50}})));
 
-  MSRE.Components.FuelPump pump(
+  replaceable MSRE.Components.FuelPump pump constrainedby
+    MSRE.Components.BaseClasses.PartialFuelPump(
     redeclare package Medium = Medium_fuel,
     dp_nominal=geometry.dp_pump_nominal,
     m_flow_nominal=geometry.m_flow_nominal,
@@ -209,12 +206,10 @@ model PrimarySystem
     N_nominal=geometry.N_pump_nominal,
     headRatio_shutoff=geometry.headRatio_shutoff,
     eta_is=geometry.eta_pump,
-    use_rotorDynamics=use_rotorDynamics,
-    tau_shaft=geometry.tau_pump_shaft,
     N_start=N_pump_start,
     m_flow_start=m_flow_start,
-    use_speedInput=true) "Fuel salt circulation pump"
-    annotation (Placement(transformation(extent={{74,0},{54,20}})));
+    use_speedInput=true) "Fuel salt circulation pump" annotation (choicesAllMatching=true,
+      Placement(transformation(extent={{74,0},{54,20}})));
 
   MSRE.Components.SaltPipe pumpToHX(
     redeclare package Medium = Medium_fuel,
@@ -455,11 +450,11 @@ equation
 <p>It is the plant, not an experiment. Two input connectors, <code>N_pump</code> and
 <code>T_coolant_in</code>, are left open for an experiment model to drive. Translating this
 model directly leaves them unconnected, so the fuel pump receives a demand of zero and the loop
-never starts, and the flow variables of the pump are then initialized from a guess that no
-longer matches any test. Simulate one of
-<a href=\"modelica://MSRE.Experiments\">MSRE.Experiments</a> or
+never starts, and the pump flow variables are then initialized from a guess that matches no
+test. Simulate one of <a href=\"modelica://MSRE.Experiments\">MSRE.Experiments</a> or
 <a href=\"modelica://MSRE.Verification.Steady_LoopBalance\">Steady_LoopBalance</a> instead;
-they supply both inputs and set the initialization to match the transient they run.</p>
+they supply both inputs and set <code>m_flow_start</code> and <code>N_pump_start</code> to
+match the transient they run.</p>
 
 <h4>Nodalization</h4>
 <p>The loop follows paper Fig. 2:</p>

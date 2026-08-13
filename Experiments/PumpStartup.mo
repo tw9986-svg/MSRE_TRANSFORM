@@ -4,14 +4,8 @@ model PumpStartup "MSRE pump startup test (paper Section 4.1)"
 
   parameter SI.Time t_null=600
     "Null transient that builds the stagnant precursor distribution before the pump starts";
-  parameter Boolean use_rotorDynamics=true
-    "=true: the pump is started by a motor step and the speed is solved; =false: the speed law below is imposed";
-  parameter SI.Time tau_shaft=4.0
-    "Pump shaft time constant when the rotor is solved; 2.0 is the paper's halved-inertia case"
-    annotation (Dialog(enable=use_rotorDynamics));
   parameter SI.Time tau_startup=3.4
-    "Time constant of the imposed pump speed rise; 3.4 s brings the flow to the rated value in about 10 s"
-    annotation (Dialog(enable=not use_rotorDynamics));
+    "Time constant of the pump speed rise; 3.4 s brings the flow to the rated value in about 10 s";
   parameter SI.Power Q_start=100 "Reactor power during the test (near zero power)";
   parameter SI.Temperature T_start=908 "Isothermal fuel salt temperature of the test";
   parameter Real N_rated(unit="1/min") = 1160 "Rated fuel pump speed";
@@ -24,16 +18,12 @@ model PumpStartup "MSRE pump startup test (paper Section 4.1)"
     T_start=T_start,
     t_null=t_null,
     use_servoControl=true,
-    use_rotorDynamics=use_rotorDynamics,
-    pump(tau_shaft=tau_shaft),
     m_flow_start=0,
-    N_pump_start=0,
     T_coolant_start=T_start) "MSRE primary system"
     annotation (Placement(transformation(extent={{-20,-20},{20,20}})));
 
-  Modelica.Blocks.Sources.RealExpression pumpSpeed(y=if time < t_null then 0 else if
-        use_rotorDynamics then N_rated else N_rated*(1 - exp(-(time - t_null)/tau_startup)))
-    "Motor torque demand when the rotor is solved, imposed speed law when it is not"
+  Modelica.Blocks.Sources.RealExpression pumpSpeed(y=if time < t_null then 0 else N_rated*(1
+         - exp(-(time - t_null)/tau_startup))) "Fuel pump speed law"
     annotation (Placement(transformation(extent={{80,-10},{56,10}})));
   Modelica.Blocks.Sources.RealExpression coolantTemperature(y=T_start)
     "Coolant salt inlet temperature, isothermal during this test"
@@ -77,24 +67,9 @@ precursor distribution: precursors accumulate in the core and there are none in 
 is the initial condition the paper describes. 600 s is about eleven half-lives of the
 longest-lived group, so the distribution is fully converged. <code>Beta_eff</code> is then
 frozen at the stagnant value, which must come out as the total delayed fraction 0.006781.</li>
-<li>The pump is started by a <b>motor step</b> at <code>t_null</code> and its speed is solved
-from the rotor angular momentum equation, so both the speed and the flow are model results.
-With zero friction and a hydraulic torque proportional to the square of the speed the rotor
-equation integrates to <code>omega = omega_nominal*tanh(t/tau_shaft)</code>, which reaches
-98.7 % of rated at 10 s for <code>tau_shaft = 4.0 s</code>. The flow is never prescribed; it
-follows from the loop momentum balance, so the transit time that drives the whole effect is two
-integrations away from the input.</li>
+<li>The pump <b>speed</b> is prescribed, not the flow; the flow follows from the loop momentum
+balance, so the transit time that drives the whole effect is a model result.</li>
 </ul>
-
-<h4>Comparing against the imposed speed law</h4>
-<p>Setting <code>use_rotorDynamics = false</code> replaces the motor step by the fitted law
-<code>N = N_rated*(1 - exp(-t/tau_startup))</code>, which is what this model did before the
-rotor was added. That law reaches 94.7 % of rated at 10 s against the solved 98.7 %, so the two
-flow histories differ mainly in the first few seconds. Whether that is visible in
-<code>msre.rho_CR_pcm</code> is the question worth asking: the drift reactivity is an integral
-over the whole precursor transit history, so a difference confined to the first seconds of a
-25 s transit should be small, and quantifying it separates the pump model's contribution from
-the precursor transport's. Results should be reported from the rotor form.</p>
 
 <h4>What to plot, and what the paper reports</h4>
 <table border=\"1\">
@@ -122,7 +97,7 @@ few pcm.</p>
 
 <h4>Sensitivity cases of the paper</h4>
 <ul>
-<li>Faster pump (moment of inertia halved): set <code>tau_shaft = 2.0</code>.</li>
+<li>Faster pump (moment of inertia halved): set <code>tau_startup = 1.7</code>.</li>
 <li>Extended core volume: increase <code>msre.geometry.V_upperPlenum</code> and reduce
 <code>msre.geometry.V_downcomer</code> by the same amount, which lengthens the core transit
 time and shortens the loop transit time and, as the paper shows, reduces the reactivity

@@ -14,7 +14,7 @@ overturns an earlier finding, add a new entry that says so.
 ## Phase 1 — Pump rotor dynamics and per-ring flow resistance
 
 **Branches:** `claude/msre-benchmarking-architecture-i35tb0` (PR #5, merged),
-`phase1/pump-consolidation` (follow-up refactor)
+`phase1/pump-consolidation` (PR #6, follow-up)
 **Status:** implemented, compiles in Dymola. Simulation results not yet recorded.
 
 ### Decisions taken
@@ -24,7 +24,8 @@ overturns an earlier finding, add a new entry that says so.
 | 1 | Ring flow resistances get a degree of freedom but keep the value 0 | The values would have to come from Kedl, ORNL-TM-3229, which has not been obtained. Fischer et al. (2024) tuned the equivalent coefficients on their three radial groups against that same data. |
 | 2 | Fuel properties stay on the existing correlation for now; ORNL-TM-4865 (Compere, 1975) deferred to Phase 2 | Changing the density at the same time as adding the rotor would mix two effects and make the regression unreadable. See the open item below — this is not a free deferral. |
 | 3 | Pump rotor parameterized by one constant, `tau_shaft` | With τ_hyd ∝ ω² the rotor equation has closed-form solutions and startup and coastdown follow from the same number. Matches the paper's "typical generic pump parameters". |
-| 4 | One pump model with a `use_rotorDynamics` switch, not two model classes | The imposed-speed form is the previous state of the work, not a modelling alternative. Keeping previous states is git's job. The switch survives only because the A/B comparison is a paper result. |
+| 4 | ~~One pump model with a `use_rotorDynamics` switch, not two model classes~~ | **Reversed.** See entry 5. |
+| 5 | The two pump models stay separate classes: `FuelPump` (imposed speed), `FuelPump_Dynamics` (rotor solved), sharing `BaseClasses.PartialFuelPump` | Decision 4 folded both into one class with a Boolean, on the reasoning that keeping a previous state is git's job. That reasoning was about *history*, and it was applied to something that is not only history: which pump drives a given run is a modelling choice a reader has to be able to see. A Boolean buried in a parameter dialog hides it — the rotor disappeared from the package browser and stopped being visible as a thing the model does. Two named classes state the choice where it can be read. Reverted in `phase1/pump-consolidation`; the consolidated form is at commit `6d19c7d` if it is ever wanted. |
 
 ### Numbers established
 
