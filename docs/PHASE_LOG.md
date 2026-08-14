@@ -15,8 +15,9 @@ that says so and strike the old one through.
 ## Phase 1 — Pump rotor dynamics and per-ring flow resistance
 
 **Branches:** `claude/msre-benchmarking-architecture-i35tb0` (PR #5, merged),
-`phase1/pump-init-fix` (PR #7, follow-up). `phase1/pump-consolidation` (PR #6) was an
-abandoned attempt — see decision 5.
+`phase1/pump-init-fix` (PR #7, merged). `phase1/pump-consolidation` (PR #6) was an abandoned
+attempt that nevertheless reached `main` and had to be reverted — see decision 5 and the
+process note below.
 **Status:** implemented, compiles in Dymola. Simulation results not yet recorded.
 
 ### Decisions taken
@@ -27,7 +28,7 @@ abandoned attempt — see decision 5.
 | 2 | Fuel properties stay on the existing correlation for now; ORNL-TM-4865 (Compere, 1975) deferred to Phase 2 | Changing the density at the same time as adding the rotor would mix two effects and make the regression unreadable. See the open item below — this is not a free deferral. |
 | 3 | Pump rotor parameterized by one constant, `tau_shaft` | With τ_hyd ∝ ω² the rotor equation has closed-form solutions and startup and coastdown follow from the same number. Matches the paper's "typical generic pump parameters". |
 | 4 | ~~One pump model with a `use_rotorDynamics` switch, not two model classes~~ | **Reversed.** See entry 5. |
-| 5 | The two pump models stay separate classes: `FuelPump` (imposed speed), `FuelPump_Dynamics` (rotor solved), sharing `BaseClasses.PartialFuelPump` | Decision 4 folded both into one class with a Boolean, on the reasoning that keeping a previous state is git's job. That reasoning was about *history*, and it was applied to something that is not only history: which pump drives a given run is a modelling choice a reader has to be able to see. A Boolean buried in a parameter dialog hides it — the rotor disappeared from the package browser and stopped being visible as a thing the model does. Two named classes state the choice where it can be read. The consolidated form was never merged; it is on the abandoned branch `phase1/pump-consolidation` (PR #6), commit `6d19c7d`, if it is ever wanted. Do not delete that branch while this reference stands. |
+| 5 | The two pump models stay separate classes: `FuelPump` (imposed speed), `FuelPump_Dynamics` (rotor solved), sharing `BaseClasses.PartialFuelPump` | Decision 4 folded both into one class with a Boolean, on the reasoning that keeping a previous state is git's job. That reasoning was about *history*, and it was applied to something that is not only history: which pump drives a given run is a modelling choice a reader has to be able to see. A Boolean buried in a parameter dialog hides it — the rotor disappeared from the package browser and stopped being visible as a thing the model does. Two named classes state the choice where it can be read. The consolidated form is on `phase1/pump-consolidation`, commit `6d19c7d`, if it is ever wanted; do not delete that branch while this reference stands. It was merged to `main` as PR #6 after this decision had already reversed it, and backed out again by PR #8 — see the process note at the end of Phase 1. |
 
 ### Numbers established
 
@@ -127,6 +128,24 @@ TRANSFORM "based on data from Compere (1975)". If so, Phase 2 may be able to use
 medium rather than restating correlations. Not verifiable from this repository — needs the
 TRANSFORM library open.
 
+### Process note — an abandoned branch reached `main`
+
+PR #6 carried the consolidation of decision 4. That decision was reversed before the PR was
+acted on, and the reversal was pushed to a different branch, but PR #6 stayed open and was
+merged anyway. `main` then held the structure the project had just decided against, and the
+next two branches — both cut before the merge — could not be merged into it at all: the pump
+files were deleted on one side and modified on the other, and `docs/PHASE_LOG.md` existed on
+both with different contents.
+
+Backing it out was clean, because the merge was reverted rather than rebased over:
+`git revert -m 1 22c846d` (PR #8) restored `main` byte-for-byte to `bb5bb2e`, after which PR #7
+and PR #9 merged without conflict. Merge order matters here and was: revert, then Phase 1, then
+Phase 2.
+
+The rule this produces: **a branch whose direction has been abandoned must have its PR closed
+at the moment of the decision, not left open with a note.** An open PR is an instruction to
+merge, whatever the conversation around it says.
+
 ### Verification status
 
 | Check | Ran? | Result |
@@ -141,7 +160,7 @@ TRANSFORM library open.
 
 ## Phase 2 — Fuel salt density traced to ORNL-TM-4865
 
-**Branch:** `phase2/properties-compere`
+**Branch:** `phase2/properties-compere` (PR #9, merged)
 **Status:** density replaced. Volumes deliberately not re-derived — see O-6, which is now the
 main open item in the library.
 
@@ -213,8 +232,8 @@ make `Media.FuelSalt` redundant. Still needs the TRANSFORM library open to check
 
 ## Phase 2b — Core volume re-derived from published channel hardware
 
-**Branch:** `phase2/properties-compere` (continues the section above)
-**Status:** implemented. Not yet compiled or simulated.
+**Branch:** `phase2/properties-compere` (PR #9, merged — same branch as the section above)
+**Status:** implemented and merged. Not yet compiled or simulated.
 
 ### Decision
 
