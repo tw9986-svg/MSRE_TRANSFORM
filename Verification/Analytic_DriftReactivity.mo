@@ -57,19 +57,15 @@ at " + String(Beta_circulating) + ", against the MSRE value of about 0.0045 (0.0
 This ratio is one of the best established numbers about the MSRE; a deviation means the
 precursor data or Eq. 8 is wrong.", AssertionLevel.error);
 
-  /* This one is a warning, and knowingly failing, until the volumes are re-derived. It is a
-     check on the geometry rather than on Eq. 8: drho_lo and drho_hi follow from V_core and
-     V_loop, which were calibrated against the density correlation that Phase 2 replaced. The
-     two assertions above are the ones that test the equation itself, and they are unaffected
-     because they use the transit times the paper reports rather than this library's volumes. */
+  /* Unlike the two above, this one tests the geometry rather than Eq. 8: drho_lo and drho_hi
+     follow from V_core and V_loop. Since Phase 2 the core side of that geometry is not fitted
+     to anything - the channel volume is published hardware and the density is ORNL-TM-4865 -
+     so this now checks a prediction rather than a calibration. */
   assert(abs(drho_lo - 0.9e-5) < 2e-6 and abs(drho_hi - 6.7e-5) < 5e-6, "Drift reactivity over
 the natural circulation transient comes out at " + String(drho_lo_pcm) + " and "
      + String(drho_hi_pcm) + " pcm, against the 0.9 and 6.7 pcm the paper reports in Section 4.3.
-These follow from V_core and V_loop, so this checks whether the geometry reproduces the transit
-times it was calibrated to. It does not at present: Phase 2 replaced the density correlation
-with ORNL-TM-4865 and left the volumes as they were, which lengthens every transit time by 9 %
-and lowers the drift reactivity by about 13 %. Expected values while that stands are 0.74 and
-5.67 pcm. See MSRE.Verification.Properties_TransitTime.", AssertionLevel.warning);
+These follow from V_core and V_loop, so this also checks that the geometry reproduces the
+transit times. Expected values are 0.87 and 6.53 pcm.", AssertionLevel.error);
 
   annotation (
     experiment(StopTime=1),

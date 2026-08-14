@@ -16,13 +16,13 @@ model CoreChannel
   parameter Real nParallel=76 "# of identical fuel channels represented by this ring";
   parameter Integer nV=20 "# of axial nodes";
   parameter Integer nR=3 "# of radial nodes in the graphite";
-  parameter SI.Length length=1.626 "Active channel length";
+  parameter SI.Length length=1.6406 "Active channel length";
   parameter SI.Length dheight=length "Elevation rise over the channel";
-  parameter SI.Area crossArea=3.9198e-4 "Flow area of a single channel";
+  parameter SI.Area crossArea=3.785088e-4 "Flow area of a single channel";
   parameter SI.Length dimension=0.01778 "Hydraulic diameter of a single channel";
-  parameter SI.Length r_graphite_inner=0.014036
+  parameter SI.Length r_graphite_inner=0.013553
     "Inner radius of the equivalent graphite annulus";
-  parameter SI.Length r_graphite_outer=0.020503
+  parameter SI.Length r_graphite_outer=0.020282
     "Outer radius of the equivalent graphite annulus";
 
   /* ---------------- Pressure loss ---------------- */
@@ -247,7 +247,7 @@ this model.</p>
 
 <p>With all coefficients at zero and identical channel geometry, the rings are hydraulically
 identical and the flow divides evenly. The one mechanism that still redistributes flow is the
-temperature dependence of the viscosity: at the channel Reynolds number of about 825 the flow
+temperature dependence of the viscosity: at the channel Reynolds number of about 855 the flow
 is laminar, so the pressure drop is proportional to the velocity, and
 <code>eta = 8.94e-5*exp(4092/T)</code> gives about -0.5 %/K. A ring running 10 K hotter than
 its neighbour therefore draws roughly 5 % more flow on its own, with no coefficient set by

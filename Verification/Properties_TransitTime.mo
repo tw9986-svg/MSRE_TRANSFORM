@@ -126,12 +126,25 @@ library was never independent: <code>V_downcomer</code> was explicitly set to ab
 balance of the inventory. Changing the density therefore moves <code>tau_L</code> by exactly
 the density ratio and says nothing about who was right.</p>
 
-<h4>What it costs</h4>
-<p>With the geometry left as it is, the higher density lengthens both transit times by 9 % and
-moves the drift reactivity from 228 pcm to <code>drho_model_pcm</code>, roughly 219 pcm,
-against 227.3 pcm measured. That is a worse agreement than before, and it is the honest
-consequence of having changed one input without re-deriving the volumes that were fitted around
-the old one. The core volume is now the quantity that needs revisiting, not the density.</p>
+<h4>What was done with it</h4>
+<p>The core volume was re-derived from the Mao channel geometry, which is the row that agrees
+with Compere to within 1 %. <code>tau_C_model</code> then comes out at 9.56 s and
+<code>drho_model_pcm</code> at 228.4 pcm, reproducing what the paper reports. What matters is
+how little was fitted to get there: the channel volume is published hardware, the density is a
+published correlation, and neither was adjusted. The core transit time is a <b>prediction</b>
+of this model, not a calibration target it was tuned to.</p>
+
+<p>The loop is the opposite and should not be presented as agreement. <code>V_downcomer</code>
+was re-derived from <code>m_fuel_loop_paper</code>, so <code>tau_L_model</code> matching 16.14 s
+is arithmetic, not evidence. It is reported here only so that the two are not confused.</p>
+
+<h4>What does not reconcile</h4>
+<p>Making the core volume come out right requires the two plenum nodes inside the core to hold
+about 3 litres each, which at the plenum bore works out to an axial length of about 12 mm. The
+paper's own core-boundary sensitivity study states the length of Volume 190-01 as 63.5 mm, five
+times longer. Both cannot be right, and the discrepancy is not resolved here. It does not
+affect the transit times, which depend on the volume rather than the length, but it does mean
+the plenum bore assumed by this model is not the one the MARS input used.</p>
 
 <h4>Status</h4>
 <p>The two assertions are parameter-time and need no solver. They have been evaluated

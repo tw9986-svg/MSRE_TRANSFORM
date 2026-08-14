@@ -49,9 +49,9 @@ Core channel hydraulics at rated flow:
 
 | Quantity | Value |
 |---|---|
-| Total flow area | 0.4469 m² (Mao Table 2: 0.4315 m², −3.4 %) |
+| Total flow area | 0.4469 m² (Mao Table 2: 0.4315 m², −3.4 %) — *superseded in Phase 2, see decision 9* |
 | Channel velocity | 0.182 m/s (Engel & Haubenreich quote 0.19 m/s) |
-| Channel Reynolds number | **825 — laminar** |
+| Channel Reynolds number | **825 — laminar** (855 after Phase 2) |
 | Core friction Δp | 243 Pa = 0.081 % of the loop Δp |
 
 Two consequences follow from the Reynolds number, and both are load-bearing:
@@ -208,3 +208,65 @@ independent value and would simply be re-derived from `m_fuel_loop_paper`.
 
 **O-5 is unchanged** — TRANSFORM's built-in medium may already be Compere-based, which would
 make `Media.FuelSalt` redundant. Still needs the TRANSFORM library open to check.
+
+---
+
+## Phase 2b — Core volume re-derived from published channel hardware
+
+**Branch:** `phase2/properties-compere` (continues the section above)
+**Status:** implemented. Not yet compiled or simulated.
+
+### Decision
+
+| # | Decision | Rationale |
+|---|---|---|
+| 9 | Core geometry taken from Mao et al. Table 2: total flow area 0.4315 m², height 1.6406 m | Resolves O-6 on the core side. The library's own 1140 × 3.9198e-4 × 1.626 was not sourced; the Mao figures are published and are the ones that agree with the ORNL-TM-4865 density to within 1 %. |
+| 10 | Plena nodalized non-uniformly; the core-boundary node is a thin slice | The node the kinetics counts as core (120-03, 190-01) is 0.86 % of the core volume, not a third of the plenum. `SaltPipe` gained `Vs_nodes`, holding the bore uniform and letting node lengths differ. |
+| 11 | `V_downcomer` re-derived from `m_fuel_loop_paper` (0.5869 → 0.4324 m³) | It has always been the item that absorbs the balance of the loop inventory and has no published value to check against. Recorded as arithmetic, not agreement. |
+
+### The result, and what it is worth
+
+| | value | fitted? |
+|---|---|---|
+| τ_C | **9.5600 s** (reported 9.56) | **no** |
+| τ_L | 16.1400 s (reported 16.14) | yes — `V_downcomer` |
+| τ_sys | 25.70 s (reported 25.63, measured 25.2) | — |
+| Drift reactivity, Eq. 8 | **228.35 pcm** (reported 228.4, measured 227.3) | — |
+| β_eff circulating | 0.00450 | — |
+| Natural circulation (U-233) | 0.87 / 6.53 pcm (paper 0.9 / 6.7) | — |
+
+**τ_C is a prediction.** Its inputs are a published flow area, a published height and a
+published density correlation, none of them adjusted. Since Eq. 8 depends on the transit times
+and nothing else, this is the one place the model reproduces the benchmark from independent
+data. τ_L is not and must not be presented as if it were.
+
+Both checks downgraded to warnings in Phase 2 now pass again and have been restored to error
+level: `Steady_LoopBalance` check 2 (25.70 s vs 25.63) and the natural circulation check in
+`Analytic_DriftReactivity` (0.87 / 6.53 vs 0.9 / 6.7).
+
+### Consequential changes
+
+`A_graphite_perChannel` is now derived rather than tabulated: stack area (π/4 × 1.26²) minus
+the channel area, shared over 1140 channels, giving 7.153e-4 m² against the previous 7.018e-4.
+`r_graphite_inner` 0.014036 → 0.013553 m, `r_graphite_outer` 0.020503 → 0.020282 m,
+`V_graphite` 1.3009 → 1.3377 m³. Channel Reynolds number 825 → 855, still laminar.
+
+### Open items
+
+**O-6 is closed on the core side, still open on the loop side.** `V_downcomer` remains
+un-checkable. Any statement about loop transit time agreement is circular.
+
+**O-7 — The plenum core-node length does not reconcile with the paper. (new)**
+
+The core node comes out at 3.055 L, which at the assumed plenum bore is an axial length of
+12 mm. The paper's core-boundary sensitivity study states Volume 190-01 as 63.5 mm — five times
+longer. The transit times depend on volume, not length, so nothing above is affected, but the
+plenum bore assumed here is not the one MARS used. Resolving it needs the MARS node dimensions,
+which are not published. Note that `corePowerShape` uses the node *length*, so the axial power
+shape near the core boundary carries this discrepancy.
+
+**O-8 — `Dh_channel` was not re-derived. (new)**
+
+It stays at 0.01778 m (0.7 in) while the flow area dropped 3.4 %, so the implied wetted
+perimeter moved from 0.0882 to 0.0852 m. Both are documented hardware in different sources and
+they are no longer mutually consistent. Affects the heat transfer area, not the transit times.

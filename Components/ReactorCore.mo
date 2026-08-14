@@ -22,12 +22,12 @@ model ReactorCore
 
   parameter Real nChannels[nRings]=fill(76, nRings) "# of fuel channels per ring";
   parameter Real nChannels_total=sum(nChannels) "Total # of fuel channels";
-  parameter SI.Length H_channels=1.626 "Active channel height";
-  parameter SI.Area A_channel=3.9198e-4 "Flow area of a single fuel channel";
+  parameter SI.Length H_channels=1.6406 "Active channel height";
+  parameter SI.Area A_channel=3.785088e-4 "Flow area of a single fuel channel";
   parameter SI.Length Dh_channel=0.01778 "Hydraulic diameter of a single fuel channel";
-  parameter SI.Length r_graphite_inner=0.014036
+  parameter SI.Length r_graphite_inner=0.013553
     "Inner radius of the equivalent graphite annulus";
-  parameter SI.Length r_graphite_outer=0.020503
+  parameter SI.Length r_graphite_outer=0.020282
     "Outer radius of the equivalent graphite annulus";
   parameter SI.Length dz_channels=H_channels "Elevation rise across the fuel channels";
 
@@ -37,6 +37,21 @@ model ReactorCore
   parameter SI.Volume V_upperPlenum=0.0777 "Upper plenum fuel salt volume";
   parameter SI.Length L_upperPlenum=0.30 "Upper plenum height";
   parameter SI.Length dz_upperPlenum=L_upperPlenum "Elevation rise across the upper plenum";
+
+  /* The plenum node that belongs to the reactor core is a thin slice at the core boundary, so
+     the plena are nodalized non-uniformly: the core node takes these volumes and the remaining
+     nodes share what is left equally. */
+  parameter SI.Volume V_lowerPlenum_core=V_lowerPlenum/nLP
+    "Fuel salt volume of the lower plenum node that belongs to the core";
+  parameter SI.Volume V_upperPlenum_core=V_upperPlenum/nUP
+    "Fuel salt volume of the upper plenum node that belongs to the core";
+
+  final parameter SI.Volume Vs_lowerPlenum[nLP]={if i == iLP_core then V_lowerPlenum_core
+       else (V_lowerPlenum - V_lowerPlenum_core)/(nLP - 1) for i in 1:nLP}
+    "Fuel salt volume of each lower plenum node";
+  final parameter SI.Volume Vs_upperPlenum[nUP]={if i == iUP_core then V_upperPlenum_core
+       else (V_upperPlenum - V_upperPlenum_core)/(nUP - 1) for i in 1:nUP}
+    "Fuel salt volume of each upper plenum node";
 
   /* ---------------- Ring form losses ---------------- */
   parameter Real K_channelInlet[nRings]=zeros(nRings)
@@ -120,6 +135,7 @@ model ReactorCore
     redeclare package Medium = Medium,
     nV=nLP,
     V=V_lowerPlenum,
+    Vs_nodes=Vs_lowerPlenum,
     length=L_lowerPlenum,
     dheight=dz_lowerPlenum,
     lambdas=lambdas,
@@ -165,6 +181,7 @@ model ReactorCore
     redeclare package Medium = Medium,
     nV=nUP,
     V=V_upperPlenum,
+    Vs_nodes=Vs_upperPlenum,
     length=L_upperPlenum,
     dheight=dz_upperPlenum,
     lambdas=lambdas,
@@ -287,7 +304,7 @@ plenum junctions, which are the only per-ring hydraulic parameters in the model.
 to zero. Setting them requires the MSRE channel flow measurements (Kedl, ORNL-TM-3229); they
 are not derivable from the geometry in this record.</li>
 <li>The viscosity, through the fuel salt temperature. The channel flow is laminar
-(<code>Re</code> is about 825 at rated flow), so this acts on the flow split directly, and no
+(<code>Re</code> is about 855 at rated flow), so this acts on the flow split directly, and no
 coefficient has to be set for it to act.</li>
 </ol>
 

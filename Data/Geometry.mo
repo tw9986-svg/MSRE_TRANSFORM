@@ -40,10 +40,14 @@ record Geometry "MSRE nodalization and geometry (Modelica counterpart of the MAR
   parameter Real nChannels_total=1140 "Total # of vertical fuel channels";
   parameter Real nChannels[nRings]=fill(nChannels_total/nRings, nRings)
     "# of channels per radial ring (equal-area rings)";
-  parameter SI.Length H_channels=1.626 "Active height of the fuel channels (64 in)";
-  parameter SI.Area A_channel=3.9198e-4 "Flow area of a single fuel channel";
+  parameter SI.Length H_channels=1.6406
+    "Active height of the fuel channels (Mao et al., Energies 2026, Table 2)";
+  parameter SI.Area A_core_total=0.4315
+    "Total core flow area (Mao et al., Energies 2026, Table 2)";
+  final parameter SI.Area A_channel=A_core_total/nChannels_total
+    "Flow area of a single fuel channel";
   parameter SI.Length Dh_channel=0.01778 "Hydraulic diameter of a single fuel channel (0.7 in)";
-  final parameter SI.Volume V_channels=nChannels_total*A_channel*H_channels
+  final parameter SI.Volume V_channels=A_core_total*H_channels
     "Total fuel salt volume inside the graphite channels";
 
   final parameter SI.Length perimeter_channel=4*A_channel/Dh_channel
@@ -53,8 +57,10 @@ record Geometry "MSRE nodalization and geometry (Modelica counterpart of the MAR
      radius reproduces the wetted perimeter of the real (grooved) channel and its outer radius
      reproduces the per-channel share of the graphite stack, so that both the convective area
      and the graphite heat capacity are preserved. */
-  parameter SI.Area A_graphite_perChannel=7.018e-4
-    "Graphite cross-section per fuel channel (1.26 m graphite stack diameter / 1140 channels)";
+  parameter SI.Length D_graphiteStack=1.26 "Diameter of the graphite stack";
+  final parameter SI.Area A_graphite_perChannel=(pi/4*D_graphiteStack^2 - A_core_total)/
+      nChannels_total
+    "Graphite cross-section per fuel channel: the stack area not taken by the channels, shared out";
   final parameter SI.Length r_graphite_inner=perimeter_channel/(2*pi)
     "Inner radius of the equivalent graphite annulus";
   final parameter SI.Length r_graphite_outer=sqrt(A_graphite_perChannel/pi + r_graphite_inner^2)
@@ -91,8 +97,26 @@ record Geometry "MSRE nodalization and geometry (Modelica counterpart of the MAR
   parameter SI.Length L_lowerPlenum=0.30 "Height of the lower plenum";
   parameter SI.Volume V_upperPlenum=0.0777 "Fuel salt volume of the upper plenum";
   parameter SI.Length L_upperPlenum=0.30 "Height of the upper plenum";
-  parameter SI.Volume V_downcomer=0.586872
-    "Fuel salt volume of the flow distributor + downcomer annulus";
+
+  /* The plenum node the kinetics counts as part of the reactor core (120-03 and 190-01 of the
+     MARS input) is a thin slice at the core boundary, not a third of the plenum. Its volume is
+     what is left of the core inventory once the channel volume is taken out, and that is only
+     0.86 % of the core: 1606 kg at 2249 kg/m3 is 0.71403 m3 against 0.70792 m3 of channels. */
+  parameter SI.Volume V_lowerPlenum_core=0.003055
+    "Fuel salt volume of the lower plenum node that belongs to the reactor core";
+  parameter SI.Volume V_upperPlenum_core=0.003055
+    "Fuel salt volume of the upper plenum node that belongs to the reactor core";
+
+  /* The plena are given a uniform bore and non-uniform node lengths, so the core node's length
+     is its share of the volume. See the open item in the documentation: the paper's own
+     sensitivity study implies a longer node than this, and the two have not been reconciled. */
+  final parameter SI.Length L_lowerPlenum_core=V_lowerPlenum_core*L_lowerPlenum/V_lowerPlenum
+    "Axial length of the lower plenum node that belongs to the reactor core";
+  final parameter SI.Length L_upperPlenum_core=V_upperPlenum_core*L_upperPlenum/V_upperPlenum
+    "Axial length of the upper plenum node that belongs to the reactor core";
+
+  parameter SI.Volume V_downcomer=0.432371
+    "Fuel salt volume of the flow distributor + downcomer annulus; the item that absorbs the balance of the loop inventory";
   parameter SI.Length L_downcomer=2.40 "Height of the downcomer";
   parameter SI.Length Dh_downcomer=0.1163 "Hydraulic diameter of the downcomer annulus";
 
@@ -172,11 +196,11 @@ record Geometry "MSRE nodalization and geometry (Modelica counterpart of the MAR
   /* ------------------------------------------------------------------
      Derived inventories and transit times (reported quantities)
      ------------------------------------------------------------------ */
-  final parameter SI.Volume V_core=V_channels + V_lowerPlenum/nLP + V_upperPlenum/nUP
+  final parameter SI.Volume V_core=V_channels + V_lowerPlenum_core + V_upperPlenum_core
     "Fuel salt volume of the reactor core as defined in the paper";
-  final parameter SI.Volume V_loop=V_lowerPlenum*(nLP - 1)/nLP + V_upperPlenum*(nUP - 1)/nUP
-       + pi/4*D_pipe^2*(L_outletPipe + L_pumpToHX + L_hxToVessel) + V_pumpBowl + V_hxShell
-       + V_downcomer "Fuel salt volume of the external loop";
+  final parameter SI.Volume V_loop=(V_lowerPlenum - V_lowerPlenum_core) + (V_upperPlenum -
+      V_upperPlenum_core) + pi/4*D_pipe^2*(L_outletPipe + L_pumpToHX + L_hxToVessel) +
+      V_pumpBowl + V_hxShell + V_downcomer "Fuel salt volume of the external loop";
   final parameter SI.Volume V_total=V_core + V_loop "Circulating fuel salt volume";
 
   final parameter SI.Time tau_core_nominal=V_core*d_fuel_ref/m_flow_nominal
@@ -221,31 +245,33 @@ record Geometry "MSRE nodalization and geometry (Modelica counterpart of the MAR
 shell with 163 tubes of 0.5 in OD giving 24.1 m2 of heat transfer area, a rated fuel flow of
 168 kg/s and a rated coolant flow of about 850 gpm.</p>
 
-<p>The node-by-node fuel-salt volume breakdown of the MARS input is not published. The volumes
-here were originally <b>calibrated to reproduce the transit times reported in the paper</b>,
-which are what actually govern the delayed-neutron drift physics (paper Eq. 8 depends on
-nothing else). That calibration was done against a density correlation that Phase 2 has since
-replaced, and the volumes have <b>not</b> been re-derived, so they no longer reproduce those
-transit times:</p>
+<p>The node-by-node fuel-salt volume breakdown of the MARS input is not published, so the
+volumes here are built from documented hardware wherever that exists and from the reported
+inventory where it does not. The distinction matters when reading the agreement below.</p>
 <table border=\"1\">
-<tr><th></th><th>this model</th><th>paper (MARS)</th></tr>
-<tr><td>core volume</td><td>0.7784 m3</td><td>-</td></tr>
-<tr><td>core transit time at 168 kg/s</td><td>10.42 s</td><td>9.56 s</td></tr>
-<tr><td>loop transit time at 168 kg/s</td><td>17.60 s</td><td>16.14 s</td></tr>
-<tr><td>system transit time</td><td>28.02 s</td><td>25.63 s (measured 25.2 s)</td></tr>
+<tr><th></th><th>this model</th><th>paper (MARS)</th><th>fitted?</th></tr>
+<tr><td>core volume</td><td>0.71403 m3</td><td>-</td><td>no</td></tr>
+<tr><td>core transit time at 168 kg/s</td><td>9.56 s</td><td>9.56 s</td><td><b>no</b></td></tr>
+<tr><td>loop transit time at 168 kg/s</td><td>16.14 s</td><td>16.14 s</td><td>yes</td></tr>
+<tr><td>system transit time</td><td>25.70 s</td><td>25.63 s (measured 25.2 s)</td><td>-</td></tr>
 </table>
-<p>(Evaluated at <code>d_fuel_ref</code>, the ORNL-TM-4865 density at 908 K, 2249 kg/m3. The
-previous correlation gave 2063 kg/m3 and the three transit times came out at 9.56, 16.14 and
-25.70 s.)</p>
 
-<p>This is an <b>open inconsistency, deliberately left visible</b> rather than absorbed. The
-density was changed because it could be traced to a primary source and the old one could not;
-the volumes that were fitted around the old one are now the quantity that needs revisiting.
-<a href=\"modelica://MSRE.Verification.Properties_TransitTime\">Properties_TransitTime</a>
-shows that the core volume implied by documented channel hardware and the reported core
-transit time agrees with the new density to within about 2 %, so the core side is close to
-resolvable from published data; the loop side is not, because <code>V_downcomer</code> was
-always the balancing item.</p>
+<p><b>The core transit time is a prediction, not a calibration.</b> Its volume is the published
+core flow area of Mao et al. (0.4315 m2 x 1.6406 m) plus two small plenum nodes, and the
+density is the ORNL-TM-4865 correlation evaluated at 908 K. Neither was adjusted to hit 9.56 s;
+they give 9.56 s. Since paper Eq. 8 depends on the transit times and on nothing else, this is
+the one place where this model reproduces the benchmark from independent inputs.</p>
+
+<p><b>The loop transit time is not.</b> <code>V_downcomer</code> is the item that absorbs the
+balance of the loop inventory and it was re-derived from <code>m_fuel_loop_paper</code>, so
+16.14 s is arithmetic rather than evidence. There is no published downcomer volume to check it
+against.</p>
+
+<p>One thing does not reconcile. The core plenum nodes come out at about 3 litres each, which
+at this plenum bore is an axial length of 12 mm, against the 63.5 mm the paper states for
+Volume 190-01 in its core-boundary sensitivity study. The transit times depend on the volume
+and not the length, so nothing above is affected, but the plenum bore assumed here is evidently
+not the one the MARS input used.</p>
 
 <p>The individual volumes that carry the largest uncertainty are
 <code>V_downcomer</code> (which absorbs the balance of the loop inventory) and

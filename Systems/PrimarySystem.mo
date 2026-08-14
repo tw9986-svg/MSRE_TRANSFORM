@@ -66,8 +66,8 @@ model PrimarySystem
       geometry.nChannels,
       geometry.A_channel,
       geometry.H_channels,
-      geometry.V_lowerPlenum/geometry.nLP,
-      geometry.V_upperPlenum/geometry.nUP) "Volume of each core cell";
+      geometry.V_lowerPlenum_core,
+      geometry.V_upperPlenum_core) "Volume of each core cell";
   final parameter SIadd.NonDim SF_core[nV_core]=MSRE.Functions.corePowerShape(
       geometry.nRings,
       geometry.nAxial,
@@ -75,10 +75,10 @@ model PrimarySystem
       geometry.f_radial,
       geometry.A_channel,
       geometry.H_channels,
-      geometry.L_lowerPlenum/geometry.nLP,
-      geometry.L_upperPlenum/geometry.nUP,
-      geometry.V_lowerPlenum/geometry.nLP,
-      geometry.V_upperPlenum/geometry.nUP,
+      geometry.L_lowerPlenum_core,
+      geometry.L_upperPlenum_core,
+      geometry.V_lowerPlenum_core,
+      geometry.V_upperPlenum_core,
       geometry.f_axialExtrapolation) "Fission source fraction of each core cell";
   final parameter SIadd.NonDim phis_core[nV_core]={SF_core[i]*sum(Vs_cells)/Vs_cells[i] for i in
           1:nV_core} "Normalized neutron flux of each core cell";
@@ -122,6 +122,8 @@ model PrimarySystem
     V_upperPlenum=geometry.V_upperPlenum,
     L_upperPlenum=geometry.L_upperPlenum,
     dz_upperPlenum=geometry.dz_upperPlenum,
+    V_lowerPlenum_core=geometry.V_lowerPlenum_core,
+    V_upperPlenum_core=geometry.V_upperPlenum_core,
     K_channelInlet=geometry.K_channelInlet,
     K_channelExit=geometry.K_channelExit,
     lambdas=data_PG.lambdas,
