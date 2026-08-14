@@ -8,11 +8,11 @@ model FuelPump_Dynamics
      Rotor
      ------------------------------------------------------------------ */
   parameter SI.Torque tau_hyd_nominal=dp_nominal*V_flow_nominal/(omega_nominal*eta_is)
-    "Hydraulic (impeller reaction) torque at the rated operating point (251 N.m)";
+    "Hydraulic (impeller reaction) torque at the rated operating point (231 N.m at the ORNL-TM-4865 density)";
   parameter SI.Time tau_shaft=4.0
     "Shaft time constant; the single fitted parameter, which sets the startup and the coastdown together";
   parameter SI.MomentOfInertia J=tau_shaft*tau_hyd_nominal/omega_nominal
-    "Polar moment of inertia of the rotor, impeller and entrained salt (8.28 kg.m2). Set either this or tau_shaft, not both";
+    "Polar moment of inertia of the rotor, impeller and entrained salt (7.59 kg.m2). Set either this or tau_shaft, not both";
   parameter SI.Torque tau_motor_nominal=tau_hyd_nominal + tau_fric_coulomb +
       tau_fric_viscous
     "Motor torque at full demand; the default balances the rated hydraulic and friction torque, so full demand settles the shaft exactly at N_nominal";
@@ -107,12 +107,12 @@ exponential did, from the same number.</p>
 <h4>Default numbers, and where they come from</h4>
 <table border=\"1\">
 <tr><th>Quantity</th><th>Value</th><th>Origin</th></tr>
-<tr><td>rated hydraulic power</td><td>24.4 kW (32.8 hp)</td>
-    <td><code>dp_nominal*V_flow_nominal</code>, i.e. 3.0 bar at 0.0814 m3/s</td></tr>
-<tr><td><code>tau_hyd_nominal</code></td><td>251 N.m</td>
+<tr><td>rated hydraulic power</td><td>22.4 kW (30.0 hp)</td>
+    <td><code>dp_nominal*V_flow_nominal</code>, i.e. 3.0 bar at 0.0747 m3/s</td></tr>
+<tr><td><code>tau_hyd_nominal</code></td><td>231 N.m</td>
     <td>that power divided by <code>omega_nominal*eta_is</code></td></tr>
 <tr><td><code>tau_shaft</code></td><td>4.0 s</td><td><b>fitted</b></td></tr>
-<tr><td><code>J</code></td><td>8.28 kg.m2</td>
+<tr><td><code>J</code></td><td>7.59 kg.m2</td>
     <td><code>tau_shaft*tau_hyd_nominal/omega_nominal</code></td></tr>
 </table>
 <p>Only the shaft time constant is free; the rest follows from the rated duty. That is the same

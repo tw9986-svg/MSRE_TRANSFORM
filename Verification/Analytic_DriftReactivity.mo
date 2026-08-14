@@ -26,7 +26,8 @@ model Analytic_DriftReactivity
     "Delayed neutron fraction with the fuel salt circulating";
 
   /* --- 3. Natural circulation, U-233, at the two flow rates of paper Fig. 10 ------ */
-  parameter SI.Density d_fuel=2055.2 "Fuel salt density at 922 K, the U-233 test temperature";
+  parameter SI.Density d_fuel=MSRE.Media.MSRE_Properties.d_Compere(922)
+    "Fuel salt density at 922 K, the U-233 test temperature (2242 kg/m3)";
   parameter SI.MassFlowRate m_flow_lo=1.46 "Flow at the start of the natural circulation test";
   parameter SI.MassFlowRate m_flow_hi=4.45 "Flow at 21000 s";
 
@@ -56,11 +57,15 @@ at " + String(Beta_circulating) + ", against the MSRE value of about 0.0045 (0.0
 This ratio is one of the best established numbers about the MSRE; a deviation means the
 precursor data or Eq. 8 is wrong.", AssertionLevel.error);
 
+  /* Unlike the two above, this one tests the geometry rather than Eq. 8: drho_lo and drho_hi
+     follow from V_core and V_loop. Since Phase 2 the core side of that geometry is not fitted
+     to anything - the channel volume is published hardware and the density is ORNL-TM-4865 -
+     so this now checks a prediction rather than a calibration. */
   assert(abs(drho_lo - 0.9e-5) < 2e-6 and abs(drho_hi - 6.7e-5) < 5e-6, "Drift reactivity over
 the natural circulation transient comes out at " + String(drho_lo_pcm) + " and "
      + String(drho_hi_pcm) + " pcm, against the 0.9 and 6.7 pcm the paper reports in Section 4.3.
-These follow from V_core and V_loop, so this also checks that the calibrated geometry still
-reproduces the transit times it was calibrated to.", AssertionLevel.error);
+These follow from V_core and V_loop, so this also checks that the geometry reproduces the
+transit times. Expected values are 0.87 and 6.53 pcm.", AssertionLevel.error);
 
   annotation (
     experiment(StopTime=1),

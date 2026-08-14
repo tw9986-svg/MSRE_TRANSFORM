@@ -18,6 +18,17 @@ model SaltPipe
   parameter SI.Length dimension=sqrt(4*crossArea/pi)
     "Hydraulic diameter (defaults to the equivalent circular pipe)";
 
+  /* Node volumes. The default splits V evenly, which is what every component of the loop wants
+     except the two reactor plena: there the node that the kinetics counts as part of the core
+     is a thin slice at the core boundary and is much smaller than the rest of the plenum. The
+     flow area is held uniform and the node lengths carry the difference, so a non-uniform split
+     describes a plenum of constant bore cut at an arbitrary station rather than a shape change. */
+  parameter SI.Volume Vs_nodes[nV]=fill(V/nV, nV) "Fluid volume of each node";
+  final parameter SI.Length dlengths[nV]={Vs_nodes[i]/crossArea for i in 1:nV}
+    "Flow length of each node";
+  final parameter SI.Length dheights[nV]={dheight*dlengths[i]/length for i in 1:nV}
+    "Elevation rise across each node";
+
   /* ---------------- Precursor transport ---------------- */
   parameter SIadd.InverseTime lambdas[Medium.nC]=zeros(Medium.nC)
     "Decay constant of each precursor group";
@@ -76,8 +87,8 @@ model SaltPipe
         dimensions=fill(dimension, nV),
         crossAreas=fill(crossArea, nV),
         perimeters=fill(4*crossArea/dimension, nV),
-        dlengths=fill(length/nV, nV),
-        dheights=fill(dheight/nV, nV)),
+        dlengths=dlengths,
+        dheights=dheights),
     redeclare model FlowModel =
         TRANSFORM.Fluid.ClosureRelations.PressureLoss.Models.DistributedPipe_1D.SinglePhase_Developed_2Region_NumStable
         (Ks_ab=Ks, Ks_ba=Ks),
@@ -107,6 +118,11 @@ model SaltPipe
   SI.Temperature Ts[nV]=pipe.mediums.T "Temperature of each node";
 
 equation
+  assert(abs(sum(Vs_nodes) - V) < 1e-12*max(V, 1e-9), "The node volumes of " + getInstanceName()
+     + " sum to " + String(sum(Vs_nodes)) + " m3 but the component volume V is " + String(V) +
+    " m3. Vs_nodes redistributes V between the nodes; it does not change how much fluid the
+component holds.", AssertionLevel.error);
+
   connect(port_a, pipe.port_a) annotation (Line(points={{-100,0},{-10,0}}, color={0,127,255}));
   connect(port_b, pipe.port_b) annotation (Line(points={{100,0},{10,0}}, color={0,127,255}));
   connect(pipe.heatPorts[:, 1], heatPorts)

@@ -58,10 +58,11 @@ is meant to be the final parameter that closes the loop.", AssertionLevel.error)
   /* ---- 2. Transit times, which are the quantities the geometry was calibrated to and the
         only thing paper Eq. 8 depends on. ---- */
   assert(abs(msre.geometry.tau_system_nominal - 25.63) < tol_tau, "The system transit time of
-the calibrated geometry is " + String(msre.geometry.tau_system_nominal) + " s against the
-25.63 s the paper reports. The volumes in MSRE.Data.Geometry exist to reproduce this number,
-so a deviation means either a volume or the reference density d_fuel_ref has been changed
-without re-deriving the other.", AssertionLevel.error);
+the geometry is " + String(msre.geometry.tau_system_nominal) + " s against the 25.63 s the
+paper reports. The core volume comes from published channel hardware and the density from
+ORNL-TM-4865, so neither is free; only V_downcomer is, and it is what absorbs the balance of
+the loop inventory. A deviation means one of those three has been changed without the others
+being re-derived. See MSRE.Verification.Properties_TransitTime.", AssertionLevel.error);
 
   when terminal() then
     /* ---- 3. Loop mass balance. The pump and the core are in series, so at steady state they
@@ -103,7 +104,7 @@ against each other; adjust K_loop until the rated point is recovered.", Assertio
           that the ring flow split responds linearly to the viscosity depends on that. ---- */
     assert(Re_max < Re_laminar, "The largest channel Reynolds number is " + String(Re_max) +
       ", above the laminar limit of " + String(Re_laminar) + ". The fuel channels are expected
-to be laminar at every flow rate in these tests (about 825 at rated flow); above the transition
+to be laminar at every flow rate in these tests (about 855 at rated flow); above the transition
 the friction correlation changes form and the ring flow split no longer responds linearly to
 the salt viscosity.", AssertionLevel.warning);
   end when;

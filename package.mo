@@ -73,8 +73,12 @@ volume, so the benchmark fixes the circulating fuel salt inventory - 1606 kg in 
 open. The volumes in the record follow from dividing those masses by the density of
 <a href=\"modelica://MSRE.Media.FuelSalt\">MSRE.Media.FuelSalt</a> at 908 K. Changing the
 density correlation therefore invalidates the volumes rather than merely perturbing them, and
-the channel volume is not available to absorb the change because it is fixed by hardware
-(1140 channels of 1.626 m, 0.7266 m3).</p>
+the channel volume is not available to absorb the change because it is fixed by hardware. That
+is what Phase 2 did: the density was traced to ORNL-TM-4865 and the core volume re-derived from
+the published core flow area, after which the core transit time comes out at the reported
+9.56 s with nothing fitted. The loop volume has no published counterpart and is still the item
+that absorbs the balance of the inventory, so the loop transit time agreeing is arithmetic
+rather than evidence.</p>
 
 <h4>What is still prescribed rather than solved</h4>
 <p>The fuel pump is available in two forms.
