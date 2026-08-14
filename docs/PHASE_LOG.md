@@ -289,3 +289,48 @@ shape near the core boundary carries this discrepancy.
 It stays at 0.01778 m (0.7 in) while the flow area dropped 3.4 %, so the implied wetted
 perimeter moved from 0.0882 to 0.0852 m. Both are documented hardware in different sources and
 they are no longer mutually consistent. Affects the heat transfer area, not the transit times.
+
+---
+
+## Phase 2c — First Dymola 2026x translation of `Steady_LoopBalance`
+
+**Branch:** `claude/msre-benchmarking-architecture-i35tb0`
+**Status:** implemented, **not re-translated here** — no Dymola in the environment this was
+written in. The two errors below are the ones Dymola 2026x reported and both are addressed at
+their source; that the translation now completes is a claim only Dymola can make.
+
+### What the translation reported
+
+| Error | Where it comes from |
+|---|---|
+| `Redeclaration requires a subtype. But missing public function massFraction`, on every fluid port in the model | TRANSFORM 1.1 against Modelica 4.1.0. Not this library — decision 12 |
+| `The problem is structurally singular. It has 186931 scalar unknowns and 186929 scalar equations` | `Steady_LoopBalance` never connected its two source blocks — decision 13 |
+
+The second one is arithmetically unambiguous and worth recording as such: the deficit is exactly
+2 equations, and Dymola named exactly 2 unconnected inputs (`N_pump`, `T_coolant_in`). There was
+nothing else wrong with the model's structure.
+
+### Decisions
+
+| # | Decision | Rationale |
+|---|---|---|
+| 12 | `massFraction` is declared in `MSRE.Media.FuelSalt` and `MSRE.Media.CoolantSalt`, rather than patching TRANSFORM or pinning Modelica back to 4.0.0 | TRANSFORM does not inherit `Modelica.Media.Interfaces.PartialMedium`; it keeps a copy of it, `TRANSFORM.Media.Interfaces.Fluids.PartialMedium`, that matches structurally and predates the `massFraction` that Modelica 4.1.0 added. `massFraction` appears nowhere in `TRANSFORM/Media`, so every TRANSFORM salt fails the same check, the untouched built-ins included. Of the three places it can be fixed, only this one is inside this repository. It is an interface declaration with no physics in it — `nXi = 0`, so it returns an empty vector — and it is inert under 4.0.0, so the library still builds against either. |
+| 13 | `Steady_LoopBalance` gets the two `connect` equations it was missing | `pumpSpeed` and `coolantTemperature` were declared and documented but never wired to `msre`. The other three experiments that instantiate `PrimarySystem` all have both connects; this model alone did not, which is why it alone was singular. No physics changed — the two inputs now carry the values the model's own component comments already said they carried. |
+
+### Open items
+
+**O-9 — TRANSFORM 1.1 is not declared against Modelica 4.1.0. (new)**
+
+`TRANSFORM/package.mo` declares `uses(Modelica(version="4.0.0"))`; this library declares
+`uses(Modelica(version="4.1.0"))`, and that is why the newer library is the one loaded.
+Decision 12 removes the only symptom seen so far, but it does not make TRANSFORM 1.1 a
+4.1.0 library, and there is no reason to assume `massFraction` is the only addition it will
+trip over. Three ways out, in increasing order of soundness: keep the shim; pin this library to
+`Modelica(version="4.0.0")` to match TRANSFORM, which needs Dymola 2026x to still ship 4.0.0;
+or get `massFraction` added to TRANSFORM's own `PartialMedium` upstream, which is where the
+defect actually is.
+
+**Neither fix has been through a translation.** Decision 12 in particular is an interface
+change that only a compiler can confirm — the argument that it is the right shape rests on it
+being byte-for-byte the body Modelica 4.1.0 itself gives
+`PartialPureSubstance.massFraction`, not on it having been checked.

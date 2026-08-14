@@ -2,8 +2,18 @@ within MSRE;
 package Media "Molten-salt thermophysical property models for the MSRE"
   extends Modelica.Icons.Package;
 
-  package CoolantSalt = TRANSFORM.Media.Fluids.FLiBe.LinearFLiBe_9999Li7_pT
+  package CoolantSalt
     "MSRE secondary coolant salt LiF-BeF2 66-34 mol%, 99.99% Li-7 (TRANSFORM built-in)"
+    extends TRANSFORM.Media.Fluids.FLiBe.LinearFLiBe_9999Li7_pT;
+
+    function massFraction "Return independent mass fractions (if any)"
+      extends Modelica.Icons.Function;
+      input ThermodynamicState state "Thermodynamic state record";
+      output MassFraction Xi[nXi] "Independent mass fractions";
+    algorithm
+      Xi := fill(0, 0);
+    end massFraction;
+
     annotation (Documentation(info="<html>
 <p>The MSRE secondary coolant salt was LiF-BeF2 66-34 mol% with Li enriched in Li-7, which is
 exactly the salt TRANSFORM ships as
@@ -24,7 +34,13 @@ the same correlations here.</p>
 harmless here because every secondary-side start temperature in
 <a href=\"modelica://MSRE.Systems.PrimarySystem\">PrimarySystem</a> is set explicitly from
 <code>T_coolant_start</code>; none of them falls back on <code>Medium.T_default</code>.</p>
+
+<p>The built-in is reached through <code>extends</code> rather than as a short class definition
+only so that <code>massFraction</code> can be added to it; nothing else is changed. See the
+package documentation of <a href=\"modelica://MSRE.Media\">MSRE.Media</a>.</p>
 </html>"));
+  end CoolantSalt;
+
   package FuelSalt_U235 =
       MSRE.Media.FuelSalt (
       extraPropertiesNames={"dnp1","dnp2","dnp3","dnp4","dnp5","dnp6"},
@@ -62,5 +78,25 @@ Substituting it at the rated 168 kg/s would stretch the fuel-salt transit time f
 41.5 s and so destroy the delayed-neutron-precursor drift behaviour that these benchmarks
 exist to test. <a href=\"modelica://MSRE.Media.FuelSalt\">FuelSalt</a> is therefore defined
 here, using the same TRANSFORM base class as the built-in salts.</p>
+
+<h4>Why both salts declare <code>massFraction</code></h4>
+<p>TRANSFORM does not inherit <code>Modelica.Media.Interfaces.PartialMedium</code>. It carries
+its own copy of it, <code>TRANSFORM.Media.Interfaces.Fluids.PartialMedium</code>, which matches
+the Modelica one structurally rather than by inheritance, and every TRANSFORM fluid medium
+descends from that copy. Modelica 4.1.0 added a <code>replaceable partial function
+massFraction</code> to <code>PartialMedium</code>; the TRANSFORM copy predates it and does not
+have it. A structural match that used to hold therefore no longer does, and every
+<code>redeclare package Medium</code> reaching a port typed
+<code>constrainedby Modelica.Media.Interfaces.PartialMedium</code> is rejected with
+<i>&quot;Redeclaration requires a subtype. But missing public function massFraction&quot;</i>.
+This is a property of TRANSFORM 1.1 against Modelica 4.1.0 and not of anything in this library;
+the same failure appears for the untouched TRANSFORM built-in salts.</p>
+
+<p>The two media used here therefore declare the function themselves, with the body Modelica
+gives it for a single substance (<code>nXi = 0</code>, so it returns an empty vector). It is an
+interface declaration only: no property, no state and no equation depends on it, and it is
+inert under Modelica 4.0.0, so the library builds against either version. It should be deleted
+here if TRANSFORM ever adds <code>massFraction</code> to its own <code>PartialMedium</code>,
+which is where the fix belongs.</p>
 </html>"));
 end Media;

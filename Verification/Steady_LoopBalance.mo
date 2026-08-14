@@ -47,6 +47,11 @@ model Steady_LoopBalance
     "Smallest ring flow rate; negative means a ring has reversed";
 
 equation
+  connect(pumpSpeed.y, msre.N_pump) annotation (Line(points={{54.8,0},{40,0},{40,4},{22,4}},
+        color={0,0,127}));
+  connect(coolantTemperature.y, msre.T_coolant_in)
+    annotation (Line(points={{54.8,40},{40,40},{40,14},{22,14}}, color={0,0,127}));
+
   /* ---- 1. Elevation closure. A closed loop cannot have a net elevation rise, and if it does
         the buoyancy term becomes a spurious pump that the natural circulation test would then
         be fitted against. This is a parameter-time check. ---- */

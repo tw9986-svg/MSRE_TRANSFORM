@@ -28,6 +28,22 @@ package FuelSalt
     annotation (Inline=true);
   end thermalConductivity;
 
+  function massFraction "Return independent mass fractions (if any)"
+    extends Modelica.Icons.Function;
+    input ThermodynamicState state "Thermodynamic state record";
+    output MassFraction Xi[nXi] "Independent mass fractions";
+  algorithm
+    Xi := fill(0, 0);
+    annotation (Documentation(info="<html>
+<p>Required by <code>Modelica.Media.Interfaces.PartialMedium</code> as of MSL 4.1.0 and absent
+from the TRANSFORM media hierarchy; see
+<a href=\"modelica://MSRE.Media\">MSRE.Media</a> for why it is declared here rather than
+inherited. The salt is a single substance, so <code>nXi</code> is zero and there is nothing to
+return. This is the same body MSL gives
+<code>Modelica.Media.Interfaces.PartialPureSubstance.massFraction</code>.</p>
+</html>"));
+  end massFraction;
+
   annotation (Documentation(info="<html>
 <h4>Property correlations</h4>
 <table border=\"1\">
