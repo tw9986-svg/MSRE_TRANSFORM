@@ -20,6 +20,12 @@ partial model PartialFuelPump
   parameter Real N_input(unit="1/min") = N_nominal
     "Commanded shaft speed when use_speedInput=false" annotation (Dialog(enable=not use_speedInput));
 
+  parameter Real N_start(unit="1/min") = 0 "Shaft speed at the start of the simulation"
+    annotation (Dialog(tab="Initialization"));
+  parameter SI.MassFlowRate m_flow_start=0
+    "Mass flow rate at the start of the simulation. Only a start value, but the head curve is nonlinear in the flow, so it is the initial guess of an iteration"
+    annotation (Dialog(tab="Initialization"));
+
   Modelica.Blocks.Interfaces.RealInput N_in(unit="1/min") if use_speedInput
     "Commanded shaft speed [rpm]" annotation (Placement(transformation(
         extent={{-20,-20},{20,20}},
@@ -45,12 +51,25 @@ partial model PartialFuelPump
   final parameter Real R_pump(unit="s2/m5") = (headRatio_shutoff - 1)*head_nominal/
     V_flow_nominal^2 "Internal hydraulic resistance of the pump";
 
-  Real N(unit="1/min") "Actual shaft speed";
-  Real N_cmd(unit="1/min") "Commanded shaft speed";
-  SI.MassFlowRate m_flow "Mass flow rate from port_a to port_b";
-  SI.VolumeFlowRate V_flow "Volumetric flow rate";
-  SI.PressureDifference dp "Pressure rise";
-  SI.Height head "Head";
+  /* Start values of the shaft and hydraulic variables. The head curve is quadratic in the flow,
+     so V_flow is an iteration variable of the initialization problem; without these Dymola
+     reports it as having no start value and begins from zero, which is the wrong end of the
+     range for any test that starts at rated flow. */
+  final parameter SI.AngularVelocity omega_start=2*pi*N_start/60
+    "Shaft angular velocity at the start of the simulation";
+  final parameter SI.VolumeFlowRate V_flow_start=m_flow_start/d_nominal
+    "Start value of the volumetric flow rate";
+  final parameter SI.Height head_start=head_shutoff*(N_start/N_nominal)^2 - R_pump*V_flow_start
+      *abs(V_flow_start) "Start value of the head";
+  final parameter SI.PressureDifference dp_start=d_nominal*Modelica.Constants.g_n*head_start
+    "Start value of the pressure rise";
+
+  Real N(unit="1/min", start=N_start) "Actual shaft speed";
+  Real N_cmd(unit="1/min", start=N_start) "Commanded shaft speed";
+  SI.MassFlowRate m_flow(start=m_flow_start) "Mass flow rate from port_a to port_b";
+  SI.VolumeFlowRate V_flow(start=V_flow_start) "Volumetric flow rate";
+  SI.PressureDifference dp(start=dp_start) "Pressure rise";
+  SI.Height head(start=head_start) "Head";
   SI.Density d "Fuel salt density at the suction";
   SI.SpecificEnthalpy dh "Specific enthalpy rise across the pump";
   SI.Power W "Pumping power";

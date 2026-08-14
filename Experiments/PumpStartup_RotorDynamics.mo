@@ -2,7 +2,7 @@ within MSRE.Experiments;
 model PumpStartup_RotorDynamics
   "MSRE pump startup test with the pump shaft speed solved rather than prescribed"
   extends MSRE.Experiments.PumpStartup(
-    msre(redeclare MSRE.Components.FuelPump_Dynamics pump(tau_shaft=tau_shaft, N_start=0)),
+    msre(redeclare MSRE.Components.FuelPump_Dynamics pump(tau_shaft=tau_shaft)),
     pumpSpeed(y=if time < t_null then 0 else N_rated));
 
   parameter SI.Time tau_shaft=4.0

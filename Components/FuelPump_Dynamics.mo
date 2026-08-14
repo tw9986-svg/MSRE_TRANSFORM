@@ -21,11 +21,9 @@ model FuelPump_Dynamics
   parameter SI.Torque tau_fric_viscous=0
     "Windage and viscous drag torque at the rated speed";
 
-  parameter Real N_start(unit="1/min") = 0 "Shaft speed at the start of the simulation"
-    annotation (Dialog(tab="Initialization"));
-
-  final parameter SI.AngularVelocity omega_start=2*pi*N_start/60
-    "Shaft angular velocity at the start of the simulation";
+  /* N_start, m_flow_start and the start values derived from them are inherited from
+     PartialFuelPump, so that the shaft state and the hydraulic variables are initialized from
+     the same operating point. */
   final parameter SI.AngularVelocity omega_reg=0.01*omega_nominal
     "Regularization width of the Coulomb friction term at zero speed";
   final parameter SI.Time tau_shaft_eff=J*omega_nominal/tau_hyd_nominal

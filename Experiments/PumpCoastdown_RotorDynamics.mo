@@ -2,8 +2,7 @@ within MSRE.Experiments;
 model PumpCoastdown_RotorDynamics
   "MSRE pump coastdown test with the pump shaft speed solved rather than prescribed"
   extends MSRE.Experiments.PumpCoastdown(
-    msre(redeclare MSRE.Components.FuelPump_Dynamics pump(tau_shaft=tau_shaft, N_start=
-            N_rated)),
+    msre(redeclare MSRE.Components.FuelPump_Dynamics pump(tau_shaft=tau_shaft)),
     pumpSpeed(y=if time < t_null then N_rated else 0));
 
   parameter SI.Time tau_shaft=4.0
@@ -28,7 +27,7 @@ any deviation is a defect in the ODE or in its initialization rather than a mode
 <h4>What to check first</h4>
 <table border=\"1\">
 <tr><th>Variable</th><th>Expected</th></tr>
-<tr><td><code>msre.pump.N</code> at <code>t_null</code></td><td>1160 rpm, from <code>N_start</code></td></tr>
+<tr><td><code>msre.pump.N</code> at <code>t_null</code></td><td>1160 rpm, from <code>msre.N_pump_start</code></td></tr>
 <tr><td><code>msre.pump.N</code> at <code>t_null + tau_shaft</code></td><td>580 rpm, i.e. exactly half</td></tr>
 <tr><td><code>msre.pump.N</code> at <code>t_null + 20 s</code></td><td>193 rpm, one sixth</td></tr>
 <tr><td><code>msre.rho_CR_pcm</code></td><td>the same curve as <code>PumpCoastdown</code></td></tr>
