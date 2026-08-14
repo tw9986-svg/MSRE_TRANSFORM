@@ -77,12 +77,12 @@ the channel volume is not available to absorb the change because it is fixed by 
 (1140 channels of 1.626 m, 0.7266 m3).</p>
 
 <h4>What is still prescribed rather than solved</h4>
-<p><a href=\"modelica://MSRE.Components.FuelPump\">FuelPump</a> integrates
+<p>The fuel pump is available in two forms.
+<a href=\"modelica://MSRE.Components.FuelPump\">FuelPump</a> takes the shaft speed as a
+boundary condition, which requires a fitted speed law per test.
+<a href=\"modelica://MSRE.Components.FuelPump_Dynamics\">FuelPump_Dynamics</a> integrates
 <code>J*der(omega) = tau_motor - tau_hyd - tau_fric</code>, as the MARS model does, and
-recovers both the startup and the coastdown from one shaft time constant. Its
-<code>use_rotorDynamics</code> switch falls back to taking the shaft speed as a boundary
-condition, which is what the model did before and needs a fitted speed law per test; it is kept
-only so the two can be compared. The per-ring
+recovers both the startup and the coastdown from one shaft time constant. The per-ring
 hydraulic resistances (<code>Geometry.K_channelInlet</code>,
 <code>Geometry.K_channelExit</code>) exist but are zero, because the MSRE channel flow
 measurements needed to set them have not been extracted; with them at zero the 15 rings are
