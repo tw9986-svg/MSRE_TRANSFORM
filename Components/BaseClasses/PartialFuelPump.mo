@@ -10,7 +10,7 @@ partial model PartialFuelPump
   parameter SI.PressureDifference dp_nominal=3.0e5
     "Pressure rise at rated speed and rated flow";
   parameter SI.MassFlowRate m_flow_nominal=168 "Rated mass flow rate";
-  parameter SI.Density d_nominal=2055 "Fuel salt density used to convert head to pressure";
+  parameter SI.Density d_nominal=2242 "Fuel salt density used to convert head to pressure (ORNL-TM-4865 at 922 K); overridden from the medium by PrimarySystem";
   parameter Real N_nominal(unit="1/min") = 1160 "Rated shaft speed";
   parameter Real headRatio_shutoff=1.25
     "Ratio of the shut-off head to the rated head, sets the slope of the characteristic";

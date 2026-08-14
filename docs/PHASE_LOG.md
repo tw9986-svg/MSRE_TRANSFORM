@@ -6,8 +6,9 @@ Git holds *what changed*. This file holds *why*, and — more importantly — wh
 unresolved. Contradictions found and deferred are the entries most worth keeping, because they
 do not appear in any diff.
 
-Append at the top. One section per phase. Do not rewrite closed sections; if a later phase
-overturns an earlier finding, add a new entry that says so.
+One section per phase, in order, newest at the bottom — this is meant to be read forwards. Do
+not rewrite closed sections; if a later phase overturns an earlier finding, add a new entry
+that says so and strike the old one through.
 
 ---
 
@@ -135,3 +136,75 @@ TRANSFORM library open.
 | `PumpCoastdown` rotor vs. imposed law | no | — |
 | `PumpStartup` rotor vs. imposed law | no | — |
 | `Analytic_DriftReactivity` | evaluated outside Modelica | passes with margin |
+
+---
+
+## Phase 2 — Fuel salt density traced to ORNL-TM-4865
+
+**Branch:** `phase2/properties-compere`
+**Status:** density replaced. Volumes deliberately not re-derived — see O-6, which is now the
+main open item in the library.
+
+### Decisions taken
+
+| # | Decision | Rationale |
+|---|---|---|
+| 6 | Fuel salt density becomes `2575 − 0.513·T[°C]` (Compere et al., ORNL-TM-4865, 1975) | The previous `2575.3 − 0.5641·T[K]` could not be traced to a source and runs ~9 % low. The new one is independently corroborated: it is Mao et al. Eq. (10), and it is the correlation behind the TRANSFORM medium Fischer et al. (2024) used. |
+| 7 | Only the density is traced; cₚ, μ, k are carried over unchanged | Deliberate ordering, not an unfinished job. The density is the property the benchmark is sensitive to — it converts volumes into transit times, and Eq. 8 depends on nothing else. cₚ does not enter the zero-power tests at all; μ and k act only through friction and heat transfer, neither of which matters at 100 W. Trace them before reporting any full-power result. |
+| 8 | Geometry left as it is, so the library no longer reproduces the reported transit times | Option B as agreed. The inconsistency is left visible and computable (`Geometry.err_m_core`, `err_m_loop`) rather than absorbed by re-fitting volumes around the new density. |
+
+### The finding, and why it contradicts what option B was chosen to show
+
+Option B was adopted on the expectation that the τ_C deviation would be evidence that **MARS
+did not use the Compere density**. The numbers say the opposite, and the reasoning that gets
+there does not use any volume this library calibrated.
+
+A transit time times a mass flow rate is a **mass**, with no density in it. The reported
+τ_C = 9.56 s at 168 kg/s therefore states that the MARS core holds **1606 kg** of fuel salt,
+whatever correlation produced it. The MARS core is its fuel channels plus two small plenum
+nodes, and the channel volume is documented hardware. Their ratio is an independent estimate of
+the density MARS used:
+
+| Core volume used | Implied density | vs Compere 2249 | vs old correlation 2063 |
+|---|---|---|---|
+| 1140 channels × 1.626 m (this library) | 2210 kg/m³ | −1.7 % | +7.1 % |
+| 0.4315 m² × 1.6406 m (Mao Table 2) | 2269 kg/m³ | **+0.9 %** | +10.0 % |
+
+Both land within ~2 % of Compere and 7–10 % from the correlation the library used before.
+**MARS almost certainly did use a Compere-like density; what was wrong was this library's
+correlation.** Nothing here is circular — no calibrated volume enters.
+
+Confirming it from the other direction: adopting Mao's published core flow area together with
+the Compere density gives τ_C = 9.64 s against the reported 9.56 s, **with nothing fitted.**
+
+### Numbers established
+
+| Quantity | Old (2063 kg/m³) | New (2249 kg/m³) |
+|---|---|---|
+| ρ at 908 K | 2063.1 | 2249.3 (+9.03 %) |
+| ρ at 922 K | 2055.2 | 2242.1 |
+| β (thermal expansion) | 2.7448e−4 | 2.2880e−4 |
+| τ_C / τ_L / τ_sys at 168 kg/s | 9.56 / 16.14 / 25.70 s | 10.42 / 17.60 / 28.02 s |
+| Drift reactivity (Eq. 8) | 228.4 pcm | 218.8 pcm |
+| Pump: P_hyd / τ_hyd / J | 24.4 kW / 251 N·m / 8.28 kg·m² | 22.4 kW / 231 N·m / 7.59 kg·m² |
+
+Measured drift reactivity is 227.3 pcm, so with the volumes unchanged the agreement moves from
++0.5 % to −3.7 %. `tau_pump_shaft` is unchanged, so the pump speed histories are identical.
+
+### Open items
+
+**O-6 — The volumes are now inconsistent with the reported transit times. This is the live item.**
+
+Both inventories are 9.0 % high (`Geometry.err_m_core`, `err_m_loop`). Two checks now fail
+knowingly and have been downgraded to warnings with the reason stated in the message:
+`Steady_LoopBalance` check 2 (τ_sys 28.02 s vs 25.63 s) and `Analytic_DriftReactivity`'s natural
+circulation check (0.74 / 5.67 pcm vs 0.9 / 6.7 pcm). They must not be re-tightened by editing
+tolerances.
+
+Resolution differs by side. The **core** is close to resolvable from published data: adopting
+Mao's core flow area (0.4315 m², 1.6406 m) gives τ_C = 9.64 s unfitted. The **loop** is not —
+`V_downcomer` was always the item that absorbed the balance of the inventory, so it has no
+independent value and would simply be re-derived from `m_fuel_loop_paper`.
+
+**O-5 is unchanged** — TRANSFORM's built-in medium may already be Compere-based, which would
+make `Media.FuelSalt` redundant. Still needs the TRANSFORM library open to check.

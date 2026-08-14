@@ -31,8 +31,8 @@ record Geometry "MSRE nodalization and geometry (Modelica counterpart of the MAR
   parameter SI.Temperature T_zeroPower=908
     "Fuel salt temperature of the zero-power pump tests";
   parameter SI.AbsolutePressure p_system=1.5e5 "System pressure set by the expansion tank";
-  parameter SI.Density d_fuel_ref=2063.1
-    "Fuel salt density at T_zeroPower. Only used for the derived quantities reported by this record; the system model evaluates the density from the medium itself";
+  parameter SI.Density d_fuel_ref=2249.3
+    "Fuel salt density at T_zeroPower, from ORNL-TM-4865. Only used for the derived quantities reported by this record; the system model evaluates the density from the medium itself";
 
   /* ------------------------------------------------------------------
      Fuel channels (graphite-moderated core region)
@@ -187,15 +187,28 @@ record Geometry "MSRE nodalization and geometry (Modelica counterpart of the MAR
     "System transit time at rated flow (paper: 25.63 s, measured 25.2 s)";
 
   /* The circulating inventory the reported transit times actually pin down. tau*m_flow is a
-     mass and does not involve the density at all, so these three numbers are the density
-     independent content of the benchmark, and the volumes above are only their consequence
-     once a density correlation has been chosen. */
-  final parameter SI.Mass m_fuel_core=tau_core_nominal*m_flow_nominal
-    "Fuel salt mass in the reactor core";
-  final parameter SI.Mass m_fuel_loop=tau_loop_nominal*m_flow_nominal
-    "Fuel salt mass in the external loop";
-  final parameter SI.Mass m_fuel_total=m_fuel_core + m_fuel_loop
-    "Circulating fuel salt mass";
+     mass and does not involve the density at all, so these are the density independent content
+     of the benchmark, and any set of volumes is only their consequence once a density
+     correlation has been chosen. Reported alongside what this record's own volumes hold, so
+     that the gap left open by Phase 2 is a computed number rather than a remark. */
+  parameter SI.Time tau_core_paper=9.56 "Core transit time reported by the paper";
+  parameter SI.Time tau_loop_paper=16.14 "External loop transit time reported by the paper";
+
+  final parameter SI.Mass m_fuel_core_paper=tau_core_paper*m_flow_nominal
+    "Fuel salt mass in the reactor core, from the reported transit time (1606 kg)";
+  final parameter SI.Mass m_fuel_loop_paper=tau_loop_paper*m_flow_nominal
+    "Fuel salt mass in the external loop, from the reported transit time (2712 kg)";
+  final parameter SI.Mass m_fuel_total_paper=m_fuel_core_paper + m_fuel_loop_paper
+    "Circulating fuel salt mass implied by the paper (4306 kg)";
+
+  final parameter SI.Mass m_fuel_core_model=V_core*d_fuel_ref
+    "Fuel salt mass this record's core volume holds at d_fuel_ref";
+  final parameter SI.Mass m_fuel_loop_model=V_loop*d_fuel_ref
+    "Fuel salt mass this record's loop volume holds at d_fuel_ref";
+  final parameter SIadd.NonDim err_m_core=m_fuel_core_model/m_fuel_core_paper - 1
+    "Relative core inventory error against the paper; zero until Phase 2 changed the density";
+  final parameter SIadd.NonDim err_m_loop=m_fuel_loop_model/m_fuel_loop_paper - 1
+    "Relative loop inventory error against the paper";
 
   final parameter SI.Length dz_closure=dz_lowerPlenum + dz_channels + dz_upperPlenum +
       dz_outletPipe + dz_pumpBowl + dz_pumpToHX + dz_hxShell + dz_hxToVessel + dz_downcomer
@@ -208,18 +221,31 @@ record Geometry "MSRE nodalization and geometry (Modelica counterpart of the MAR
 shell with 163 tubes of 0.5 in OD giving 24.1 m2 of heat transfer area, a rated fuel flow of
 168 kg/s and a rated coolant flow of about 850 gpm.</p>
 
-<p>The node-by-node fuel-salt volume breakdown of the MARS input is not published. The
-volumes here are therefore <b>calibrated to reproduce the transit times reported in the
-paper</b>, which are what actually govern the delayed-neutron drift physics (paper Eq. 8
-depends on nothing else):</p>
+<p>The node-by-node fuel-salt volume breakdown of the MARS input is not published. The volumes
+here were originally <b>calibrated to reproduce the transit times reported in the paper</b>,
+which are what actually govern the delayed-neutron drift physics (paper Eq. 8 depends on
+nothing else). That calibration was done against a density correlation that Phase 2 has since
+replaced, and the volumes have <b>not</b> been re-derived, so they no longer reproduce those
+transit times:</p>
 <table border=\"1\">
 <tr><th></th><th>this model</th><th>paper (MARS)</th></tr>
 <tr><td>core volume</td><td>0.7784 m3</td><td>-</td></tr>
-<tr><td>core transit time at 168 kg/s</td><td>9.56 s</td><td>9.56 s</td></tr>
-<tr><td>loop transit time at 168 kg/s</td><td>16.14 s</td><td>16.14 s</td></tr>
-<tr><td>system transit time</td><td>25.70 s</td><td>25.63 s (measured 25.2 s)</td></tr>
+<tr><td>core transit time at 168 kg/s</td><td>10.42 s</td><td>9.56 s</td></tr>
+<tr><td>loop transit time at 168 kg/s</td><td>17.60 s</td><td>16.14 s</td></tr>
+<tr><td>system transit time</td><td>28.02 s</td><td>25.63 s (measured 25.2 s)</td></tr>
 </table>
-<p>(Transit times are evaluated with the fuel salt density at 908 K, 2063 kg/m3.)</p>
+<p>(Evaluated at <code>d_fuel_ref</code>, the ORNL-TM-4865 density at 908 K, 2249 kg/m3. The
+previous correlation gave 2063 kg/m3 and the three transit times came out at 9.56, 16.14 and
+25.70 s.)</p>
+
+<p>This is an <b>open inconsistency, deliberately left visible</b> rather than absorbed. The
+density was changed because it could be traced to a primary source and the old one could not;
+the volumes that were fitted around the old one are now the quantity that needs revisiting.
+<a href=\"modelica://MSRE.Verification.Properties_TransitTime\">Properties_TransitTime</a>
+shows that the core volume implied by documented channel hardware and the reported core
+transit time agrees with the new density to within about 2 %, so the core side is close to
+resolvable from published data; the loop side is not, because <code>V_downcomer</code> was
+always the balancing item.</p>
 
 <p>The individual volumes that carry the largest uncertainty are
 <code>V_downcomer</code> (which absorbs the balance of the loop inventory) and
@@ -236,13 +262,17 @@ paper's sensitivity cases can be run directly:</p>
 equation, and the parameters it needs are collected here. Only one of them is free:</p>
 <table border=\"1\">
 <tr><th>Parameter</th><th>Value</th><th>Fixed by</th></tr>
-<tr><td><code>P_pump_hydraulic</code></td><td>24.4 kW</td>
+<tr><td><code>P_pump_hydraulic</code></td><td>22.4 kW</td>
     <td>the rated duty, 3.0 bar at 168 kg/s</td></tr>
-<tr><td><code>tau_pump_hyd_nominal</code></td><td>251 N.m</td>
+<tr><td><code>tau_pump_hyd_nominal</code></td><td>231 N.m</td>
     <td>that power, <code>N_pump_nominal</code> and <code>eta_pump</code></td></tr>
 <tr><td><code>tau_pump_shaft</code></td><td>4.0 s</td><td><b>fitted</b></td></tr>
-<tr><td><code>J_pump</code></td><td>8.28 kg.m2</td><td>follows from the two above</td></tr>
+<tr><td><code>J_pump</code></td><td>7.59 kg.m2</td><td>follows from the two above</td></tr>
 </table>
+<p>These three moved with the density in Phase 2, because the rated duty is stated as a mass
+flow rate and the hydraulic power needs a volumetric one. At 2063 kg/m3 they were 24.4 kW,
+251 N.m and 8.28 kg.m2. Nothing about the pump transients changes: <code>tau_pump_shaft</code>
+is the fitted quantity and it is unchanged, so the speed histories are identical.</p>
 <p>The same <code>tau_pump_shaft</code> produces the startup and the coastdown, because with a
 hydraulic torque proportional to the square of the speed the rotor equation gives
 <code>tanh(t/tau)</code> when the motor is switched on and <code>1/(1+t/tau)</code> when it is
@@ -254,17 +284,28 @@ sensitivity case with the moment of inertia halved is <code>tau_pump_shaft = 2.0
 what they actually fix is a <b>mass</b>: <code>tau*m_flow</code> contains no density. The
 benchmark therefore pins the circulating inventory at</p>
 <table border=\"1\">
-<tr><td>core</td><td><code>m_fuel_core</code></td><td>1606 kg</td></tr>
-<tr><td>external loop</td><td><code>m_fuel_loop</code></td><td>2712 kg</td></tr>
-<tr><td>total</td><td><code>m_fuel_total</code></td><td>4306 kg</td></tr>
+<tr><th></th><th>paper implies</th><th>this record holds</th><th>error</th></tr>
+<tr><td>core</td><td><code>m_fuel_core_paper</code> 1606 kg</td>
+    <td><code>m_fuel_core_model</code> 1751 kg</td><td><code>err_m_core</code> +9.0 %</td></tr>
+<tr><td>external loop</td><td><code>m_fuel_loop_paper</code> 2712 kg</td>
+    <td><code>m_fuel_loop_model</code> 2956 kg</td><td><code>err_m_loop</code> +9.0 %</td></tr>
 </table>
-<p>and leaves the volume/density split of that mass undetermined. The volumes above were
-obtained by dividing those masses by <code>d_fuel_ref</code>, so changing the density
-correlation invalidates them and requires the volumes to be re-derived, not merely re-checked.
-This matters because the channel volume is <i>not</i> free: <code>V_channels</code> is
-0.7266 m3 from documented hardware alone (1140 channels of 1.626 m), and at 2249 kg/m3 - the
-density the ORNL-TM-4865 correlation gives at 908 K - a core holding 1606 kg would have a
-total volume of 0.714 m3, less than the channels by themselves. Any move to that correlation
-has to resolve that contradiction rather than absorb it into the plena.</p>
+<p>and leaves the volume/density split of that mass undetermined. The volumes here were
+obtained by dividing those masses by the <i>old</i> density, so both errors were zero before
+Phase 2 and are now the density ratio.</p>
+
+<p>The core side is close to resolvable from published data, and this is the useful part.
+<code>V_channels</code> is <i>not</i> a free quantity: it is 0.7266 m3 from documented hardware
+alone (1140 channels of 1.626 m), and the MARS core is those channels plus two small plenum
+nodes. Dividing 1606 kg by the channel volume gives 2210 kg/m3, and doing the same with the
+independently published core flow area of Mao et al. (0.4315 m2 x 1.6406 m) gives 2269 kg/m3.
+Both sit within about 2 % of the ORNL-TM-4865 value of 2249 kg/m3 and 7 to 10 % away from the
+correlation this library used before, which is the evidence that the density was the thing that
+was wrong. Re-deriving <code>V_channels</code> from the Mao area would bring
+<code>tau_core_nominal</code> to 9.64 s against the reported 9.56 s with nothing fitted.</p>
+
+<p>The loop side cannot be settled the same way: <code>V_downcomer</code> was always the item
+that absorbed the balance of the inventory, so it has no independent value to check against and
+would simply be re-derived from <code>m_fuel_loop_paper</code>.</p>
 </html>"));
 end Geometry;
