@@ -116,9 +116,10 @@ flow distribution needs the full-power (8 MW) or natural-circulation case. Do no
 
 **O-4 — ~~Verification models have never been run.~~ Partly closed; see the Phase 2b run below.**
 
-`Steady_LoopBalance` has now been simulated and all seven checks pass, including check 6, which
-this entry predicted would fail first. `Transient_DriftReactivity`, `Analytic_DriftReactivity`
-and `Properties_TransitTime` remain unrun.
+`Steady_LoopBalance`, `Analytic_DriftReactivity` and `Properties_TransitTime` have now been
+simulated and every assertion in them passes, including `Steady_LoopBalance` check 6, which this
+entry predicted would fail first. `Transient_DriftReactivity` and `NaturalCirculation` remain
+unrun, and so does the rotor ODE — see O-10.
 
 **O-5 — TRANSFORM may already ship a Compere-based fuel salt.**
 
@@ -348,3 +349,58 @@ order worth trying: `Advanced.Define.DAEsolver = true`, which usually helps TRAN
 models substantially; a stiff solver better matched to the problem (Esdirk45a, Radau IIa); or
 steady-state initialization to skip the startup transient that produces the warning. None has
 been tried yet.
+
+---
+
+## Phase 2b run — the parameter-time verification models
+
+`Properties_TransitTime` and `Analytic_DriftReactivity` both simulate successfully. Neither has
+dynamics; the assertions are evaluated at initialization and the run costs 1 ms. Cheap, but what
+they check is the arithmetic the whole of Phase 2 rests on.
+
+### `Properties_TransitTime` — 2/2 pass
+
+The Phase 2 argument is now an executable check rather than a claim in prose:
+
+- the core density implied by the reported transit time and the documented channel volume is
+  within 5 % of ORNL-TM-4865, and
+- it is **closer to ORNL-TM-4865 than to the correlation that was replaced.**
+
+The second is the load-bearing one. If anyone later reverts the density, this assertion stops
+the model rather than letting the change pass silently.
+
+### `Analytic_DriftReactivity` — 3/3 pass
+
+| Check | Result |
+|---|---|
+| Eq. 8 at the reported transit times = 228.4 pcm | pass |
+| Circulating β_eff ≈ 0.0045 | pass |
+| Natural circulation drift 0.87 / 6.53 pcm vs the paper's 0.9 / 6.7 | pass |
+
+The third is a check on `V_core` and `V_loop`, so the core volume re-derived in Phase 2b clears
+an independent test: the hand calculation that predicted 0.87 and 6.53 pcm was right.
+
+### Assertion coverage: 13 of 17
+
+| Model | Assertions | Run |
+|---|---|---|
+| `Steady_LoopBalance` | 7 | yes |
+| `Analytic_DriftReactivity` | 3 | yes |
+| `Properties_TransitTime` | 2 | yes |
+| `SaltPipe` node volume sum | 1, many instances | yes, via `Steady_LoopBalance` |
+| `Transient_DriftReactivity` | 2 | no |
+| `FuelPump_Dynamics` shaft speed ≥ 0 | 1 | no |
+| `NaturalCirculation` | 1 | no |
+
+### O-10 — The rotor ODE has never been integrated. (new)
+
+`FuelPump_Dynamics` is the main product of Phase 1 and no simulation has instantiated it. Every
+model run so far uses the kinematic `FuelPump`, because `PrimarySystem` defaults to it and only
+the `_RotorDynamics` experiment variants redeclare it.
+
+Nothing about the rotor is therefore verified: not the closed-form `tanh` startup, not the
+`1/(1+t/tau)` coastdown, not the claim that one `tau_shaft` produces both. The cheapest way to
+close this is `PumpCoastdown_RotorDynamics`, where the analytic solution is known, so the
+imposed-speed and solved-rotor runs must agree to solver tolerance and any deviation is a defect
+rather than a modelling choice. It needs about 800 s of simulated time, so O-9 is worth
+addressing first.
