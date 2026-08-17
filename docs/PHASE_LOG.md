@@ -114,12 +114,11 @@ At the benchmark power the ring-to-ring temperature spread is at most 0.4 µK, s
 flow distribution needs the full-power (8 MW) or natural-circulation case. Do not present the
 15-ring resistance model as validated by the zero-power tests.
 
-**O-4 — Verification models have never been run.**
+**O-4 — ~~Verification models have never been run.~~ Partly closed; see the Phase 2b run below.**
 
-`Steady_LoopBalance` and `Transient_DriftReactivity` compile but have not been simulated. Their
-tolerances are stated acceptance criteria, not observed results. `Steady_LoopBalance` check 6
-(delivered flow vs. rated) is the most likely to fail first and is deliberately a warning: the
-loop form losses have never been exercised against the pump characteristic in a solver.
+`Steady_LoopBalance` has now been simulated and all seven checks pass, including check 6, which
+this entry predicted would fail first. `Transient_DriftReactivity`, `Analytic_DriftReactivity`
+and `Properties_TransitTime` remain unrun.
 
 **O-5 — TRANSFORM may already ship a Compere-based fuel salt.**
 
@@ -289,3 +288,63 @@ shape near the core boundary carries this discrepancy.
 It stays at 0.01778 m (0.7 in) while the flow area dropped 3.4 %, so the implied wetted
 perimeter moved from 0.0882 to 0.0852 m. Both are documented hardware in different sources and
 they are no longer mutually consistent. Affects the heat transfer area, not the transit times.
+
+---
+
+## Phase 2b run — `Steady_LoopBalance` simulated
+
+**Date:** first successful end-to-end run. Dymola, DASSL, StopTime 300 s, Tolerance 1e-6.
+
+### Result: all seven checks pass
+
+No assertion fired, warning-level included, and the terminal section ran to completion.
+
+| # | Check | Level | Verdict |
+|---|---|---|---|
+| 1 | Loop elevation closure Σdz = 0 | error | pass |
+| 2 | τ_sys = 25.63 ± 0.15 s | error | pass |
+| 3 | Pump flow = core flow at steady state | error | pass |
+| 4 | 15 rings split the flow evenly, < 0.01 % | error | pass |
+| 5 | No ring reversed | error | pass |
+| 6 | Loop delivers 168 kg/s ± 10 % | warning | **pass** |
+| 7 | Channels laminar, Re < 2300 | warning | pass |
+
+Two of these carry more weight than the rest.
+
+**Check 6 was the one expected to fail.** The loop form losses (`K_pumpInlet`, `K_pumpExit`,
+`K_loop`) had never been exercised against the pump characteristic in a solver; they were
+estimates. They hold at the rated point.
+
+**Check 4 is direct evidence that the 15-ring parallel topology is well posed.** Plena exposing
+their state while the channels do not is what makes each ring an independent flow state, and
+that construction now has a solver result behind it rather than an argument.
+
+The Phase 2 geometry also survives its first dynamic test: check 2 exercises the re-derived core
+volume and the ORNL-TM-4865 density together, and check 7 confirms the laminar regime that the
+ring-flow-split reasoning depends on still holds at 855 rather than 825.
+
+### Numbers not yet extracted
+
+Assertions report pass/fail, not values. The following still need to be read off the result
+file before anything is quoted: `m_flow_fuel` at t = 300 (check 6 admits ±10 %, so the actual
+deviation is unknown), `err_flowSplit`, `Re_max`, `tau_core`, `tau_loop`, `pump.dp`.
+
+### O-9 — Integration cost makes the long transients impractical. (new)
+
+774 s of CPU for 300 s of simulated time, about 2.6× real time, with a stiffness warning at
+T = 1.08e-2 s where roughly 500 steps went into the first 0.1 s interval. The cause is the
+acoustic time scale set by `kappa_const = 2.89e-10` in `Media.FuelSalt`, which the medium's own
+documentation already flags as stiff and physically irrelevant here.
+
+Extrapolated cost of the remaining benchmark models:
+
+| Model | StopTime | Estimated CPU |
+|---|---|---|
+| `PumpStartup`, `PumpCoastdown` | 750–800 s | ~35 min each |
+| `NaturalCirculation` | 21000 s | **~15 hours** |
+
+The natural circulation test is effectively unrunnable as things stand. Candidates, in the
+order worth trying: `Advanced.Define.DAEsolver = true`, which usually helps TRANSFORM fluid
+models substantially; a stiff solver better matched to the problem (Esdirk45a, Radau IIa); or
+steady-state initialization to skip the startup transient that produces the warning. None has
+been tried yet.
