@@ -108,9 +108,14 @@ the pure-FLiBe and coolant-salt utilities and substitutes <b>only</b> the densit
 <tr><th>at 922 K</th><th>this library</th><th>TRANSFORM MSRE fuel salt</th><th>TRANSFORM coolant (FLiBe)</th></tr>
 <tr><td>density [kg/m3]</td><td>2242.1</td><td>2242.1 &nbsp;(identical)</td><td>1942</td></tr>
 <tr><td>specific heat [J/(kg.K)]</td><td>1967</td><td>2386.5</td><td>2386.5 &nbsp;(same)</td></tr>
-<tr><td>viscosity [Pa.s]</td><td>7.57e-3</td><td>6.81e-3</td><td>6.81e-3 &nbsp;(same)</td></tr>
-<tr><td>thermal conductivity [W/(m.K)]</td><td>1.44</td><td>1.0</td><td>1.0038 &nbsp;(same)</td></tr>
+<tr><td>viscosity [Pa.s]</td><td>7.57e-3</td><td>6.81e-3</td><td>6.81e-3 &nbsp;(same expression)</td></tr>
+<tr><td>thermal conductivity [W/(m.K)]</td><td>1.44</td><td>1.0</td><td>1.0038 &nbsp;(0.4 % apart)</td></tr>
 </table>
+<p>The specific heat and the viscosity are the coolant salt's <i>exactly</i> &mdash; the same
+expression, not a similar one. The conductivity is not exactly equal: the fuel salt codes a bare
+<code>1.0</code> and the coolant converts 0.58 Btu/(hr.ft.degF) to 1.0038, which is the same
+value written two ways rather than two determinations of it. Either way it is a FLiBe number and
+not a fuel-salt one.</p>
 <p>The specific heat is the clearest case. TRANSFORM's fuel salt uses
 <code>from_cal_gK(0.57)</code> and its coolant salt uses <code>from_btu_lbF(0.57)</code>; those
 two unit functions differ but 1 cal/(g.K) and 1 Btu/(lb.degF) are the same magnitude, so both
