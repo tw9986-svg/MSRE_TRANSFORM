@@ -334,3 +334,178 @@ defect actually is.
 change that only a compiler can confirm — the argument that it is the right shape rests on it
 being byte-for-byte the body Modelica 4.1.0 itself gives
 `PartialPureSubstance.massFraction`, not on it having been checked.
+
+---
+
+## Phase 3 — Fuel salt property provenance, and the first checks that actually ran
+
+**Branch:** `claude/msre-benchmarking-architecture-i35tb0`
+**Status:** ρ, μ, cₚ, k each investigated independently and reclassified. Two verification
+scripts written and **run**; they pass. The Modelica side is unchanged in physics and remains
+**BLOCKED_NOT_RUN** — see the process note.
+
+### What ran, and what did not
+
+This is the first phase in which anything was executed, so the distinction matters more than
+usual:
+
+| | Ran? | Result |
+|---|---|---|
+| `docs/verification/property_check.py` | **yes** | all checks pass |
+| `docs/verification/rotor_check.py` | **yes** | all checks pass |
+| Any Modelica model | **no** | `BLOCKED_NOT_RUN`, evidence in `docs/verification/toolchain_probe.log` |
+
+The two scripts are independent re-implementations of correlations and of one ODE. They verify
+*arithmetic*; they do not execute `MSRE.Media.FuelSalt` or `MSRE.Components.FuelPump_Dynamics`,
+and nothing below should be read as saying the Modelica works.
+
+### Decisions taken
+
+| # | Decision | Rationale |
+|---|---|---|
+| 14 | All four properties reclassified as **source-unverified**; the density additionally marked **corroborated** | Not one primary document could be opened — every document host was refused by the network egress proxy. The previous claim that the density "has been traced to a primary source" was too strong and has been withdrawn. What the density *does* have is three independent codebases carrying the identical expression, which is corroboration, not tracing. |
+| 15 | The report number is **left out** of `d_T.mo` rather than corrected | Reachable catalogues put that title/author/year under **ORNL-4865**; this library and TRANSFORM both say **ORNL-TM-4865**. Neither document could be opened, so replacing one unverified number with another is not an improvement. See O-10. |
+| 16 | TRANSFORM's MSRE fuel salt medium is **not** adopted, though it exists | O-5 asked whether it could replace `MSRE.Media.FuelSalt`. It cannot — see the finding below. The density is adopted in the sense that it was already identical. |
+| 17 | The "98.7 % in 10 s" claim is restated as a **shaft speed** everywhere it appears | `tanh(10/4) = 0.9866` is ω/ω_n. The flow is separated from it by the loop momentum balance and this library has never run the model that would produce it. Four files said "rated flow"; all four were wrong in the same way. |
+
+### The finding that closes O-5, and reverses what it was expected to show
+
+TRANSFORM **does** ship an MSRE fuel salt:
+`TRANSFORM.Media.Fluids.FLiBe.LinearFLiBe_64LiF_30BeF2_5ZrF4_1UF4_CrFeNi`. O-5 anticipated that
+this would make `MSRE.Media.FuelSalt` redundant. It does not, and the reason is visible in
+TRANSFORM's own tree.
+
+| at 922 K | this library | TRANSFORM MSRE **fuel** | TRANSFORM **coolant** (FLiBe) |
+|---|---|---|---|
+| density [kg/m³] | 2242.1 | **2242.1 — identical** | 1942 |
+| specific heat [J/(kg·K)] | 1967 | 2386.5 | 2386.5 — *the same* |
+| viscosity [Pa·s] | 7.57e−3 | 6.81e−3 | 6.81e−3 — *the same* |
+| thermal conductivity [W/(m·K)] | 1.44 | 1.0 | 1.0038 — *the same* |
+
+**TRANSFORM's "MSRE fuel salt" is a density-only specialization of FLiBe.** Its cₚ, μ and k are
+the pure-FLiBe/coolant values; its viscosity is `Utilities_FLiBe`'s generic FLiBe correlation
+verbatim. Adopting it whole would replace this library's fuel-salt cₚ with the coolant-salt
+value, which is the wrong direction: the fuel salt carries ZrF₄ and UF₄ and is ~15 % denser than
+the coolant salt, so its specific heat *per unit mass* must be the **lower** of the two.
+0.47 Btu/(lb·°F) < 0.57 has the right sense; 0.57 for both does not.
+
+Two things follow that are worth keeping. First, the Phase 2 density change is now confirmed
+against TRANSFORM's **source code**, not only against a literature description of it — the two
+expressions are the same expression, and both derive `beta_const` the same way at their own
+reference temperatures. Second, the ORNL-TM-4865 citation in this library almost certainly came
+*from* TRANSFORM's source comment, which is where O-10 comes from.
+
+### Numbers established
+
+Property comparison at 922 K, and the gap each one can actually reach:
+
+| Property | this library | TRANSFORM | gap | reaches the zero-power benchmark through |
+|---|---|---|---|---|
+| ρ | 2242.14 | 2242.14 | **0.00 %** | transit times → Eq. 8. Carries the benchmark. |
+| μ | 7.565e−3 | 6.811e−3 | +11.1 % | Re ≈ 855, laminar → the *only* unfitted mechanism for ring-to-ring flow split |
+| cₚ | 1967 | 2386.5 | −17.6 % | nothing at 100 W |
+| k | 1.44 | 1.0 | +44.0 % | nothing at 100 W |
+
+Rotor ODE, verified against closed form to 1e−15 (RK4, step-halved to confirm):
+
+| | result |
+|---|---|
+| startup ω/ω_n = tanh(t/τ) | max error 3.0e−15 over 0–40 s |
+| coastdown ω/ω₀ = 1/(1+t/τ) | max error 2.4e−15 over 0–60 s |
+| N at t+4 s / t+20 s | 580.0 / 193.3 rpm — the two figures `PumpCoastdown_RotorDynamics` tells a reader to check |
+| **speed** at 10 s | **98.66 %** |
+| flow at 10 s, *lumped estimate only* | 98.44 % |
+| flow at 1 s vs speed at 1 s, *lumped estimate only* | **3.5 % vs 24.5 %** |
+
+That last row is the point of decision 17. Late in the transient speed and flow are within a
+quarter of a percent, which is why the conflation went unnoticed; one second in they differ by
+21 percentage points, and the early transient is exactly where the two candidate speed laws
+differ and where the precursor distribution is being set.
+
+The lumped estimate is **not** this library's answer: it collapses the loop to one inertia
+(ρ·Σ L/A = 2.87e6 kg/m⁴) and one resistance, where `PrimarySystem` distributes momentum over
+TRANSFORM pipe volumes, splits the core into 15 parallel rings and includes buoyancy. It is
+quoted to show that the speed figure cannot be restated as a flow figure, not to supply one.
+
+### Documentation defects corrected
+
+Phase 2 changed the density and left several derived numbers behind it. These were stale in
+`Data/Geometry.mo` and are now fixed:
+
+| Item | Was | Is |
+|---|---|---|
+| `P_pump_hydraulic` comment | 24.4 kW, 32.8 hp | 22.407 kW, 30.0 hp |
+| `tau_pump_hyd_nominal` comment | 251 N·m | 230.57 N·m |
+| `J_pump` comment | 8.28 kg·m² | 7.592 kg·m² |
+| inventory table | +9.0 % both sides, 1751 / 2956 kg | −0.001 % both sides, 1606.1 / 2711.5 kg |
+
+The inventory row is the one that mattered: Phase 2b re-derived the volumes and drove both
+errors to zero, but the table in the same file still described the Phase 2 state. It now also
+says *why* each zero is a zero — the core because published geometry × published density
+reproduces the reported mass, the loop because `V_downcomer` was set to make it so.
+
+Also: `lambda_T.mo` documented 0.83 Btu/(hr·ft·°F) while coding 1.44 W/(m·K). The exact round
+trip of 0.83 is 1.4365 W/(m·K), and 1.44 W/(m·K) is 0.8320 Btu/(hr·ft·°F). 0.24 % — numerically
+irrelevant at 100 W, but it shows the docstring was a rounded restatement rather than the
+provenance of the constant, and it is now written that way.
+
+### Open items
+
+**O-10 — The report number behind the density does not check out. (new)**
+
+This library cited ORNL-**TM**-4865; TRANSFORM's own source comment says
+`// ORNL-TM-4865 Table 2.1 and 2.2`. Every reachable catalogue returns *Fission Product Behavior
+in the Molten Salt Reactor Experiment* (Compere, Bohlmann, Kirslis, Blankenship, Grimes, October
+1975) as **ORNL-4865** — a different series. Neither document could be opened. The number has
+been removed from `d_T.mo`'s function comment rather than replaced. Resolving it needs one
+person with one PDF, and it is the cheapest open item in the library.
+
+Note what this does *not* threaten: the correlation itself is corroborated by three independent
+codebases regardless of which report it came from. What is missing is the page/table/equation
+reference and the valid temperature range — and the temperature range is the part that actually
+constrains use of the model.
+
+**O-11 — The viscosity has no identifiable origin. (new)**
+
+`8.94e-5*exp(4092/T)` could not be matched to any document or to any other MSRE model examined.
+It is not TRANSFORM's (`0.116e-3*exp(3755/T)`), and the two differ in shape as well as
+magnitude: 11 % apart at 922 K, ~15 % at 800 K, ~8 % at 1000 K. This is the least supported of
+the four correlations, and — because the channels are laminar — it is the one the ring-to-ring
+flow distribution depends on. It should be traced before any ring-level flow claim is made,
+which ties it to **O-3**.
+
+**O-12 — Composition mismatch, unassessed. (new)**
+
+`MSRE.Media.FuelSalt` declares LiF-BeF₂-ZrF₄-UF₄ 65-29.1-5-0.9 mol%. TRANSFORM's medium declares
+64.1-30.0-5.0-0.809 and 64.5-30.4-4.9-0.137 — the U-235 and U-233 loadings. The *same* density
+expression is applied across a ~1 mol% difference in LiF/BeF₂ by both libraries, and nobody has
+assessed what that is worth.
+
+**O-4 is partly discharged.** "Verification models have never been run" still holds for every
+Modelica model, but `Properties_TransitTime` and the new `Properties_FuelSalt` have now had
+their assertions evaluated by independent re-implementation, and both pass.
+
+**O-9 is corroborated.** The TRANSFORM copy inspected declares `Modelica(version="4.0.0")` and
+contains no `massFraction` anywhere in its media tree, which is exactly the situation decision
+12 describes. That does not verify the shim — only a compiler can — but the premise it rests on
+is now checked rather than assumed.
+
+### Process note — every document host was blocked
+
+The provenance work was bounded by the network, not by effort. Web *search* was available and
+web *fetch* was refused for every document host attempted: OSTI, ORNL, INL/VTB, MDPI, ANL, MIT
+DSpace, arXiv, moltensalt.org. So the literature landscape below is mapped from search results
+only, and **not one correlation could be read in its own source**. Three acquisition routes are
+now identified and none needs anything but a PDF:
+
+- **ORNL-TM-2316**, Cantor et al. (1968), *Physical Properties of Molten-Salt Reactor Fuel,
+  Coolant, and Flush Salts* — the dedicated MSRE properties report. This is the P1 source.
+- **ORNL/TM-2019/1359**, *Status Report on the MSRE TRANSFORM Model for Thermal-Hydraulic
+  Benchmarking* — its Section 2 is explicitly about adding MSRE fuel salt properties to
+  TRANSFORM, so it should say where the four TRANSFORM correlations came from.
+- **NSE 199(12) 2143–2171 (2025)**, Elhareef, Abouhussien, Wu, Fratoni, Davidson, Fei, Harris,
+  *A Reactor Transient Benchmark for MSRE Pump Transient Tests* — the evaluated benchmark, and
+  the likely home of the reconstructed flow histories that Phase 4 fitting is blocked on.
+
+Until one of those is in hand, the correct status for every property in this library is
+source-unverified, and that is now what the code says.

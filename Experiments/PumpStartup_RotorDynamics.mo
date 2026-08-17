@@ -27,18 +27,27 @@ torque demand, and the speed is a state.</li>
 <p>The speed history is therefore a result. With zero friction and a hydraulic torque
 proportional to the square of the speed the rotor equation integrates to</p>
 <p><code>omega(t) = omega_nominal*tanh(t/tau_shaft)</code></p>
-<p>which reaches 98.7 % of rated at 10 s for <code>tau_shaft = 4.0 s</code>, so the flow rise
-the paper describes is reproduced without a fitted speed law.</p>
+<p>which reaches 98.7 % of rated <b>shaft speed</b> at 10 s for <code>tau_shaft = 4.0 s</code>,
+without a fitted speed law.</p>
+
+<p><b>The flow figure is not the same number and is not yet known.</b> The 98.7 % is
+<code>tanh(10/4)</code>, a speed ratio. The mass flow follows only through the loop momentum
+balance, and this model has never been run, so this library cannot presently state what
+<code>msre.m_flow_fuel_norm</code> does at 10 s. A lumped single-inertia estimate of the loop
+(<code>docs/verification/rotor_check.py</code>, not this model) puts it near 98.4 % at 10 s but
+at only ~3 % when the shaft is already at 24 %, one second in. The early discrepancy is the part
+that matters, because it is where the two candidate speed laws differ most.</p>
 
 <h4>The comparison worth running</h4>
 <p>Run this model and <code>PumpStartup</code> together and plot
 <code>msre.m_flow_fuel_norm</code> from both. The fitted exponential
-(<code>tau_startup = 3.4 s</code>) reaches 94.7 % of rated at 10 s and the solved
-<code>tanh</code> reaches 98.7 %, so the two flow histories differ mainly in the first few
-seconds. What matters for the benchmark is whether that difference is visible in
-<code>msre.rho_CR_pcm</code>: the drift reactivity is an integral over the whole precursor
-transit history, so a difference confined to the first seconds of a 25 s transit should be
-small. Quantifying it is the point of having both models.</p>
+(<code>tau_startup = 3.4 s</code>) reaches 94.7 % of rated <i>speed</i> at 10 s and the solved
+<code>tanh</code> reaches 98.7 %, so the two speed histories differ mainly in the first few
+seconds; whether the flow histories do is what the run would establish. What matters for the
+benchmark is whether that difference is visible in <code>msre.rho_CR_pcm</code>: the drift
+reactivity is an integral over the whole precursor transit history, so a difference confined to
+the first seconds of a 25 s transit should be small. Quantifying it is the point of having both
+models, and it is not quantified until both have been simulated.</p>
 
 <h4>Why this is not just a cosmetic change</h4>
 <p><code>PumpStartup</code> needs <code>tau_startup = 3.4 s</code> and

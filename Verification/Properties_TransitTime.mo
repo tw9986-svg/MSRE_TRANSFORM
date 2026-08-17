@@ -38,7 +38,7 @@ model Properties_TransitTime
 
   /* ---------------- Step 3: the candidate correlations at the same temperature ---------- */
   final parameter SI.Density d_Compere=MSRE.Media.MSRE_Properties.d_Compere(T)
-    "ORNL-TM-4865, the correlation the library now uses";
+    "Compere et al. (1975), the correlation the library now uses; see MSRE_Properties for the unresolved report number";
   final parameter SI.Density d_legacy=MSRE.Media.MSRE_Properties.d_legacy(T)
     "What the library used before Phase 2";
 

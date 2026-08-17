@@ -1,0 +1,114 @@
+====================================================================================================
+MSRE fuel salt property verification -- Phase 1
+====================================================================================================
+
+Scope.  Arithmetic and unit-conversion verification of the four correlations in
+MSRE.Media.FuelSalt.Utilities, plus a like-for-like comparison against the MSRE
+fuel salt medium TRANSFORM itself ships.  No measurement is involved, so nothing
+below is an experimental validation.
+
+----------------------------------------------------------------------------------------------------
+1.  UNIT CONVERSIONS  (the documented imperial value <-> the SI constant in the code)
+----------------------------------------------------------------------------------------------------
+[PASS] cp: 0.47 Btu/(lb.degF) -> J/(kg.K) vs coded 1967     got        1967.8 J/(kg.K)   expected          1967  rel  4.05e-04 (tol 5e-04)
+         0.47 x 4186.8 = 1967.80; the code rounds to 1967, i.e. -0.041 %.
+[PASS] k: coded 1.44 W/(m.K) -> Btu/(hr.ft.degF)            got      0.832016 Btu/(hr.ft.degF) expected         0.832  rel  1.98e-05 (tol 1e-03)
+         1.44 / 1.730735 = 0.83202 Btu/(hr.ft.degF).
+[NOTE] lambda_T.mo's docstring says 0.83 Btu/(hr.ft.degF), which converts to 1.43651 W/(m.K),
+       not the coded 1.44 (-0.24 %). The docstring is a rounded restatement, not the provenance
+       of the constant.
+[PASS] 1200 degF -> K (the docstring's reference point)     got       922.039 K          expected           922  rel  4.22e-05 (tol 1e-04)
+         1200 degF = 922.039 K; the medium's reference_T is 922 K.
+[PASS] mu(922 K) in cP vs the docstring's 7.6 cP            got       7.56508 cP         expected           7.6  rel  4.59e-03 (tol 1e-02)
+         eta(922) = 7.56508e-03 Pa.s = 7.5651 cP.
+[PASS] rho(922 K) with the correct degC argument            got       2242.14 kg/m3      expected       2242.14  rel  2.23e-08 (tol 1e-04)
+         Reading the same correlation with a kelvin argument would give 2102.0 kg/m3, -6.2 %. This is why d_T.mo subtracts 273.15: the correlation is stated in degC.
+
+----------------------------------------------------------------------------------------------------
+2.  INTERNAL CONSISTENCY OF THE MEDIUM DECLARATION  (Media/FuelSalt/package.mo)
+----------------------------------------------------------------------------------------------------
+[PASS] beta_const vs 0.513/rho(reference_T)                 got     0.0002288 1/K        expected   0.000228799  rel  3.16e-06 (tol 1e-04)
+         -1/rho drho/dT at 922 K = 0.513/2242.14 = 2.287993e-04.
+[PASS] reference_d vs d_T(reference_T)                      got       2242.14 kg/m3      expected       2242.14  rel  2.23e-08 (tol 1e-05)
+         reference_d is declared as Utilities.d_T(reference_T), so this is definitional; checked to catch a change to d_T that the docstring table would not follow.
+[PASS] Geometry.d_fuel_ref vs d_T(908 K)                    got       2249.32 kg/m3      expected        2249.3  rel  9.76e-06 (tol 1e-04)
+         Data.Geometry carries d_fuel_ref = 2249.3 kg/m3 as a literal.
+
+----------------------------------------------------------------------------------------------------
+3.  P0 vs THE MSRE FUEL SALT MEDIUM TRANSFORM SHIPS
+----------------------------------------------------------------------------------------------------
+TRANSFORM.Media.Fluids.FLiBe.LinearFLiBe_64LiF_30BeF2_5ZrF4_1UF4_CrFeNi, whose source
+comment reads "ORNL-TM-4865 Table 2.1 and 2.2".  This settles open item O-5: TRANSFORM does
+ship an MSRE fuel salt.  Whether the library should adopt it is a different question, and the
+four rows below are why.
+
+property at 922 K                    this library (P0)       TRANSFORM     deviation
+density [kg/m3]                                2242.14         2242.14        -0.00 %
+specific heat [J/(kg.K)]                          1967         2386.48       -17.58 %
+dynamic viscosity [Pa.s]                    0.00756508      0.00681076        11.08 %
+thermal conductivity [W/(m.K)]                    1.44               1        44.00 %
+[PASS] density: P0 is byte-for-byte TRANSFORM's correlation got       2242.14 kg/m3      expected       2242.14  rel  2.03e-16 (tol 1e-12)
+         2575 - 0.513*T[degC] against (2.575 - 5.13e-4*T[degC])*1000. Identical expressions. The Phase 2 density change is therefore confirmed against TRANSFORM's own source, not only against the literature description of it.
+[PASS] TRANSFORM beta_const vs 0.513/rho(800 K)             got   0.000222586 1/K        expected   0.000222586  rel  5.26e-07 (tol 1e-04)
+         Confirms that this library derives beta the same way TRANSFORM does, at its own reference temperature.
+
+The three properties that are NOT the density all disagree, and the reason is visible in
+TRANSFORM's own tree: its MSRE fuel salt takes cp, mu and k from the pure-FLiBe/coolant
+utilities and substitutes only the density.
+
+    TRANSFORM coolant  (Utilities_9999Li7, ORNL-TM-3832 Table 3):
+        cp = from_btu_lbF(0.57) = 2386.5 J/(kg.K),  k = from_btu_hrftF(0.58) = 1.0038 W/(m.K)
+    TRANSFORM fuel     (Utilities_64LiF_...,  ORNL-TM-4865 Tables 2.1/2.2):
+        cp = from_cal_gK(0.57)  = 2386.5 J/(kg.K),  k = 1.0 W/(m.K)
+        mu = 0.116e-3*exp(3755/T), which is Utilities_FLiBe's generic FLiBe viscosity verbatim
+
+So TRANSFORM's "MSRE fuel salt" is a density-only specialization of FLiBe.  Adopting it whole
+would replace this library's fuel-salt cp with the coolant-salt value.  That is the wrong
+direction on physical grounds: the fuel salt carries ZrF4 and UF4 and is about 17 % denser than
+the coolant salt, so its specific heat per unit mass must be LOWER than pure FLiBe's, not equal
+to it.  0.47 Btu/(lb.degF) < 0.57 Btu/(lb.degF) has the right sense; 0.57 for both does not.
+
+----------------------------------------------------------------------------------------------------
+4.  COMPOSITION
+----------------------------------------------------------------------------------------------------
+MSRE.Media.FuelSalt declares       LiF-BeF2-ZrF4-UF4  65 - 29.1 - 5   - 0.9   mol%
+TRANSFORM's fuel salt declares     LiF-BeF2-ZrF4-UF4  64.1- 30.0 - 5.0 - 0.809 mol%
+                              and  a second loading   64.5- 30.4 - 4.9 - 0.137 mol%
+
+These are not the same salt.  The 0.9 / 0.809 pair is the U-235 loading and 0.137 is the U-233
+loading, so the library's 65-29.1-5-0.9 is a rounded U-235 composition while TRANSFORM carries
+both loadings in one medium name.  The density correlation is nevertheless the same expression
+in both, which means the correlation is being applied across a composition difference of about
+1 mol% in LiF/BeF2 without that having been assessed.  Recorded, not resolved.
+
+----------------------------------------------------------------------------------------------------
+5.  PROPERTY GRID, 800-1000 K
+----------------------------------------------------------------------------------------------------
+[PASS] density decreases monotonically over 800-1000 K (2304.7 -> 2202.1 kg/m3)
+[PASS] viscosity decreases monotonically over 800-1000 K (14.885 -> 5.351 cP)
+[PASS] all four properties positive over the whole grid
+
+Prandtl number over the grid: 7.3 to 20.3 (10.3 at 922 K)
+Reported because cp, mu and k reach the model only through Pr and Re; a property error
+that leaves Pr unchanged does not move the heat transfer.
+
+wrote property_grid.csv  (43 rows, 800-1000 K in 5 K steps)
+wrote property_comparison.csv
+wrote properties_fuelsalt.png
+
+====================================================================================================
+RESULT: all checks passed
+====================================================================================================
+
+Findings recorded (not failures):
+  1. lambda_T.mo documents 0.83 Btu/(hr.ft.degF) but codes 1.44 W/(m.K). The exact round trip of 0.83 is 1.4365 W/(m.K) (-0.24 %), and 1.44 W/(m.K) is 0.8320 Btu/(hr.ft.degF). Too small to matter numerically at 100 W, but it shows the docstring is a rounded restatement rather than the source of the value.
+  2. O-5 resolved: TRANSFORM ships LinearFLiBe_64LiF_30BeF2_5ZrF4_1UF4_CrFeNi, an MSRE fuel salt whose density is identical to this library's. Its cp, mu and k are pure-FLiBe / coolant-salt values, so it must NOT be adopted wholesale.
+  3. Composition mismatch: the library declares 65-29.1-5-0.9 mol%, TRANSFORM's medium declares 64.1-30.0-5.0-0.809 (and 64.5-30.4-4.9-0.137). The same density correlation is used for both; the sensitivity to that ~1 mol% difference has not been assessed.
+
+Status of this run
+    numerically verified : the arithmetic and unit conversions above
+    NOT verified         : the Modelica implementation of the same correlations
+                           (MSRE.Verification.Properties_FuelSalt is BLOCKED_NOT_RUN)
+    NOT validated        : none of these properties has been checked against a measurement,
+                           and no primary source document could be opened from this container
+

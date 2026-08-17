@@ -147,13 +147,14 @@ record Geometry "MSRE nodalization and geometry (Modelica counterpart of the MAR
   final parameter SI.AngularVelocity omega_pump_nominal=2*pi*N_pump_nominal/60
     "Rated fuel pump angular velocity";
   final parameter SI.Power P_pump_hydraulic=dp_pump_nominal*V_flow_pump_nominal
-    "Rated fuel pump hydraulic power (24.4 kW, 32.8 hp)";
+    "Rated fuel pump hydraulic power (22.4 kW, 30.0 hp at the ORNL density)";
   final parameter SI.Torque tau_pump_hyd_nominal=P_pump_hydraulic/(omega_pump_nominal*
-      eta_pump) "Rated fuel pump hydraulic torque (251 N.m)";
+      eta_pump) "Rated fuel pump hydraulic torque (231 N.m)";
   parameter SI.Time tau_pump_shaft=4.0
-    "Fuel pump shaft time constant; sets the startup and the coastdown transient together";
+    "Fuel pump shaft time constant; sets the startup and the coastdown transient together. FITTED effective parameter, not a measured rotor property";
   final parameter SI.MomentOfInertia J_pump=tau_pump_shaft*tau_pump_hyd_nominal/
-      omega_pump_nominal "Fuel pump rotor moment of inertia (8.28 kg.m2)";
+      omega_pump_nominal
+    "Fuel pump rotor moment of inertia (7.59 kg.m2). DERIVED from the fitted tau_pump_shaft, not independent of it and not a measured inertia";
 
   parameter Real K_pumpInlet=1.75 "Form loss coefficient at the fuel pump inlet";
   parameter Real K_pumpExit=1.75 "Form loss coefficient at the fuel pump exit";
@@ -288,13 +289,18 @@ paper's sensitivity cases can be run directly:</p>
 equation, and the parameters it needs are collected here. Only one of them is free:</p>
 <table border=\"1\">
 <tr><th>Parameter</th><th>Value</th><th>Fixed by</th></tr>
-<tr><td><code>P_pump_hydraulic</code></td><td>22.4 kW</td>
+<tr><td><code>P_pump_hydraulic</code></td><td>22.407 kW</td>
     <td>the rated duty, 3.0 bar at 168 kg/s</td></tr>
-<tr><td><code>tau_pump_hyd_nominal</code></td><td>231 N.m</td>
+<tr><td><code>tau_pump_hyd_nominal</code></td><td>230.57 N.m</td>
     <td>that power, <code>N_pump_nominal</code> and <code>eta_pump</code></td></tr>
 <tr><td><code>tau_pump_shaft</code></td><td>4.0 s</td><td><b>fitted</b></td></tr>
-<tr><td><code>J_pump</code></td><td>7.59 kg.m2</td><td>follows from the two above</td></tr>
+<tr><td><code>J_pump</code></td><td>7.592 kg.m2</td><td>follows from the two above</td></tr>
 </table>
+<p><b>No measured MSRE fuel-pump moment of inertia is in hand.</b> <code>J_pump</code> is a
+consequence of the fitted <code>tau_pump_shaft</code> and must not be quoted as a rotor
+property. Should a measured inertia ever be obtained, the correct move is to fix
+<code>J_pump</code> at it and estimate the friction torques instead, not to carry both as free
+parameters.</p>
 <p>These three moved with the density in Phase 2, because the rated duty is stated as a mass
 flow rate and the hydraulic power needs a volumetric one. At 2063 kg/m3 they were 24.4 kW,
 251 N.m and 8.28 kg.m2. Nothing about the pump transients changes: <code>tau_pump_shaft</code>
@@ -302,23 +308,35 @@ is the fitted quantity and it is unchanged, so the speed histories are identical
 <p>The same <code>tau_pump_shaft</code> produces the startup and the coastdown, because with a
 hydraulic torque proportional to the square of the speed the rotor equation gives
 <code>tanh(t/tau)</code> when the motor is switched on and <code>1/(1+t/tau)</code> when it is
-switched off. At 4.0 s the startup reaches 98.7 % of rated flow in 10 s. The paper's
-sensitivity case with the moment of inertia halved is <code>tau_pump_shaft = 2.0</code>.</p>
+switched off. At 4.0 s the startup reaches 98.7 % of rated <b>shaft speed</b> in 10 s &mdash;
+a speed, not a flow; the flow follows only through the loop momentum balance and this library
+has not yet run the model that would produce it. The paper's sensitivity case with the moment of
+inertia halved is <code>tau_pump_shaft = 2.0</code>.</p>
 
 <h4>What the reported transit times do and do not constrain</h4>
 <p><code>tau_core_nominal</code> and <code>tau_loop_nominal</code> are calibration targets, but
 what they actually fix is a <b>mass</b>: <code>tau*m_flow</code> contains no density. The
 benchmark therefore pins the circulating inventory at</p>
 <table border=\"1\">
-<tr><th></th><th>paper implies</th><th>this record holds</th><th>error</th></tr>
-<tr><td>core</td><td><code>m_fuel_core_paper</code> 1606 kg</td>
-    <td><code>m_fuel_core_model</code> 1751 kg</td><td><code>err_m_core</code> +9.0 %</td></tr>
-<tr><td>external loop</td><td><code>m_fuel_loop_paper</code> 2712 kg</td>
-    <td><code>m_fuel_loop_model</code> 2956 kg</td><td><code>err_m_loop</code> +9.0 %</td></tr>
+<tr><th></th><th>paper implies</th><th>this record holds</th><th>error</th><th>why</th></tr>
+<tr><td>core</td><td><code>m_fuel_core_paper</code> 1606.1 kg</td>
+    <td><code>m_fuel_core_model</code> 1606.1 kg</td><td><code>err_m_core</code> -0.001 %</td>
+    <td>published geometry x published density; <b>not fitted</b></td></tr>
+<tr><td>external loop</td><td><code>m_fuel_loop_paper</code> 2711.5 kg</td>
+    <td><code>m_fuel_loop_model</code> 2711.5 kg</td><td><code>err_m_loop</code> -0.001 %</td>
+    <td><code>V_downcomer</code> was derived from this number; <b>circular</b></td></tr>
 </table>
-<p>and leaves the volume/density split of that mass undetermined. The volumes here were
-obtained by dividing those masses by the <i>old</i> density, so both errors were zero before
-Phase 2 and are now the density ratio.</p>
+<p>and leaves the volume/density split of that mass undetermined.</p>
+
+<p>The history of these two numbers is worth keeping straight, because they have been zero for
+two different reasons. Before Phase 2 the volumes were obtained by dividing the reported masses
+by the <i>old</i> density, so both errors were zero by construction. Phase 2 changed the density
+and left the volumes alone, and both errors became +9.0 %, which is the density ratio. Phase 2b
+then re-derived the core volume from the published Mao channel geometry and re-derived
+<code>V_downcomer</code> from <code>m_fuel_loop_paper</code>, and both errors returned to zero
+&mdash; but only the core one is meaningful. The core is zero because a published flow area
+times a published height times a published density correlation happens to reproduce the
+reported mass; the loop is zero because <code>V_downcomer</code> was set to make it so.</p>
 
 <p>The core side is close to resolvable from published data, and this is the useful part.
 <code>V_channels</code> is <i>not</i> a free quantity: it is 0.7266 m3 from documented hardware

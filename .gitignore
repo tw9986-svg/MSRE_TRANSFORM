@@ -54,3 +54,13 @@ OMEdit/
 .idea/
 .DS_Store
 Thumbs.db
+
+# ---------------------------------------------------------------------------
+# Verification evidence is deliberately tracked.
+# The *.csv and *.log rules above exist to keep Dymola's per-run artefacts out
+# of the history. The files under docs/verification/ are the opposite: they are
+# the recorded output of checks that were actually executed, and the raw probe
+# log proving which parts of the toolchain were absent. They have to survive.
+# ---------------------------------------------------------------------------
+!docs/verification/*.csv
+!docs/verification/*.log

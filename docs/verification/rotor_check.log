@@ -1,0 +1,120 @@
+====================================================================================================
+Pump rotor ODE verification -- Phase 4, section 8.2
+====================================================================================================
+
+Derived parameters (nothing here is fitted except tau_shaft):
+    omega_nominal        121.4749 rad/s   (1160 rpm)
+    V_flow_nominal       0.074690 m3/s   (168 kg/s at 2249.3 kg/m3)
+    P_hydraulic           22.4070 kW     (dp_nominal * V_flow_nominal)
+    tau_hyd_nominal      230.5720 N.m    (that power / (omega_n * eta_is))
+    tau_shaft              4.0000 s      <-- FITTED effective parameter, not a measured inertia
+    J                      7.5924 kg.m2  (follows from tau_shaft; NOT independent of it)
+
+Note on J.  J and tau_shaft are one degree of freedom written two ways, and the model exposes
+both. Only one may ever be set. No measured MSRE fuel-pump moment of inertia is in hand, so J is
+a *derived* consequence of a fitted time constant and must not be reported as a rotor property.
+
+----------------------------------------------------------------------------------------------------
+1.  STARTUP FROM REST   ->   omega/omega_n = tanh(t/tau_shaft)
+----------------------------------------------------------------------------------------------------
+max |numerical - tanh| over 0-40 s : 2.998e-15
+[PASS] the rotor ODE integrates to tanh(t/tau_shaft) to 1e-9
+[PASS] startup speed ratio at t =  4.0 s                      got    0.7615942         exact    0.7615942  |err|  2.55e-15 (tol 1e-09)
+[PASS] startup speed ratio at t =  8.0 s                      got    0.9640276         exact    0.9640276  |err|  5.55e-16 (tol 1e-09)
+[PASS] startup speed ratio at t = 10.0 s                      got    0.9866143         exact    0.9866143  |err|  1.11e-15 (tol 1e-09)
+[PASS] startup speed ratio at t = 16.0 s                      got    0.9993293         exact    0.9993293  |err|  2.66e-15 (tol 1e-09)
+
+    ---> at 10 s the SHAFT SPEED is 98.66 % of rated.
+         This is the origin of the "98.7 %" in the documentation. It is a speed, not a flow.
+
+----------------------------------------------------------------------------------------------------
+2.  COASTDOWN FROM RATED   ->   omega/omega_0 = 1/(1 + t/tau_shaft)
+----------------------------------------------------------------------------------------------------
+max |numerical - hyperbola| over 0-60 s : 2.442e-15
+[PASS] the rotor ODE integrates to 1/(1+t/tau_shaft) to 1e-9
+[PASS] coastdown speed ratio at t =  4.0 s                    got          0.5         exact          0.5  |err|  1.11e-16 (tol 1e-09)
+         one tau_shaft -> exactly half
+[PASS] coastdown speed ratio at t = 20.0 s                    got    0.1666667         exact    0.1666667  |err|  2.50e-16 (tol 1e-09)
+         20 s -> one sixth
+[PASS] coastdown speed ratio at t = 36.0 s                    got          0.1         exact          0.1  |err|  3.47e-16 (tol 1e-09)
+         36 s -> one tenth
+
+    The three rows PumpCoastdown_RotorDynamics tells a reader to check:
+        N at t_null             1160.0 rpm   (doc says 1160)
+        N at t_null + 4 s        580.0 rpm   (doc says  580)
+        N at t_null + 20 s       193.3 rpm   (doc says  193)
+    All three confirmed against the ODE.
+
+----------------------------------------------------------------------------------------------------
+3.  STEP-SIZE CONVERGENCE  (that the 1e-9 above is the ODE, not the integrator)
+----------------------------------------------------------------------------------------------------
+    h = 4e-03 s   ratio(10 s) = 0.986614298151   |err| = 5.107e-15
+    h = 2e-03 s   ratio(10 s) = 0.986614298151   |err| = 6.661e-16
+    h = 1e-03 s   ratio(10 s) = 0.986614298151   |err| = 1.110e-15
+    h = 5e-04 s   ratio(10 s) = 0.986614298151   |err| = 3.109e-15
+    RK4 is fourth order, so the error falls by ~16x per halving; it is already far
+    below anything being compared.
+
+----------------------------------------------------------------------------------------------------
+4.  WHY THE SPEED RESULT MUST NOT BE RESTATED AS A FLOW RESULT
+----------------------------------------------------------------------------------------------------
+
+The flow is separated from the speed by the loop momentum balance,
+
+    I * dQ/dt = dp_pump(Q, N) - R_loop * Q|Q|,    I = rho * sum(L_i/A_i)
+
+so the flow can only follow the speed instantaneously if I is negligible. It is not zero, and
+the estimate below says how far from zero it is. THIS IS A BOUNDING ESTIMATE, NOT THE LIBRARY'S
+ANSWER: it lumps the loop into one inertia and one resistance, whereas PrimarySystem distributes
+momentum over TRANSFORM pipe volumes, splits the core into 15 parallel rings and includes
+buoyancy. Only the Modelica model can produce the real number, and it has not been run.
+
+    segment               L [m]     A [m2]   L/A [1/m]
+    fuel channels        1.6406    0.43150        3.80
+    lower plenum         0.3000    0.25900        1.16
+    upper plenum         0.3000    0.25900        1.16
+    outlet riser         4.0000    0.01299      307.96
+    pump bowl            0.6000    0.25000        2.40
+    pump discharge       5.0000    0.01299      384.94
+    HX shell             2.4400    0.10902       22.38
+    HX outlet pipe       7.0000    0.01299      538.92
+    downcomer            2.4000    0.18015       13.32
+    sum L/A                                    1276.05
+
+    I = rho*sum(L/A)   = 2.8702e+06 kg/m4
+    R_loop             = 5.3777e+07 Pa.s2/m6   (rated duty: 3.0 bar at 0.07469 m3/s)
+    dp_pump(Q,N)       = 1.25*dp_n*(N/N_n)^2 - 1.3444e+07*Q|Q|
+
+      t [s]   speed/rated   flow/rated   flow - speed
+        1.0        0.2449       0.0352        -0.2097
+        2.0        0.4621       0.2339        -0.2282
+        5.0        0.8483       0.8183        -0.0300
+       10.0        0.9866       0.9844        -0.0023
+       15.0        0.9989       0.9987        -0.0002
+       20.0        0.9999       0.9999        -0.0000
+
+    ---> at 10 s the FLOW is 98.44 % of rated, against 98.66 % for the speed.
+
+    The two are close because the hydraulic time constant, I*Q_n/(2*dp_n) = 0.357 s, is
+    about 11x shorter than tau_shaft = 4.0 s, so the flow tracks the speed with
+    only a short lag. That is a *result*, not a licence to use the words interchangeably: the
+    closeness is a property of this loop's inertia and would not survive a heavier loop, a
+    faster rotor, or the coastdown into natural circulation. The documentation should state the
+    98.7 % as a speed and quote the flow separately once the model has been run.
+
+    wrote rotor_startup.csv, rotor_coastdown.csv
+    wrote rotor_verification.png
+
+====================================================================================================
+RESULT: all checks passed
+====================================================================================================
+
+Status
+    numerically verified : the rotor ODE reproduces both closed-form speed laws to 1e-9, and
+                           one tau_shaft produces both, which is the property the model claims
+    NOT verified         : the MODELICA implementation of this ODE. This script re-implements
+                           the equation; it does not execute FuelPump_Dynamics.
+    NOT validated        : no measured MSRE pump speed or flow history was used or is present
+                           in this repository. Section 8.3 fitting is BLOCKED -- reference data
+                           missing.
+

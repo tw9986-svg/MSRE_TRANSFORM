@@ -58,12 +58,21 @@ return. This is the same body MSL gives
 <code>kappa_const</code> is taken from the TRANSFORM FLiBe model; the primary system is
 essentially incompressible at MSRE conditions so this value only sets the (stiff)
 acoustic time scale.</p>
-<p>The density is from Compere et al., ORNL-TM-4865 (1975), and only that one has been traced to
-a primary source; the other three are the values commonly used in the published MSRE benchmark
-models and are carried over unchanged. All four are collected in
+<p><b>None of the four has been traced to a primary source.</b> No document host was reachable
+from the environment in which this was last reviewed, so no page, table or equation reference
+can be given for any of them, and no valid temperature range has been established for any of
+them. What separates the density from the other three is <i>corroboration</i>, not tracing: the
+identical expression is carried by Mao et al. Eq. (10) and, character for character, by the MSRE
+fuel salt medium TRANSFORM itself ships. The other three are the values commonly used in the
+published MSRE benchmark models, carried over unchanged, and all three disagree with TRANSFORM's
+MSRE medium &mdash; by 17.6 % (cp), 11 % (mu) and 44 % (k). All four are collected in
 <a href=\"modelica://MSRE.Media.FuelSalt.Utilities\">Utilities</a> so that they can be replaced
-in one place, and their provenance is set out in
+in one place, and their provenance, the reason TRANSFORM's medium is <i>not</i> adopted whole,
+and the unresolved report number are set out in
 <a href=\"modelica://MSRE.Media.MSRE_Properties\">MSRE_Properties</a>.</p>
+
+<p>Jeong et al. (2026) publish no property correlations and no property values, so <b>no
+correlation here may be described as Jeong exact</b>. This is a surrogate set throughout.</p>
 
 <p>The density carries the benchmark, which is why it was the one worth tracing: it converts
 the fuel salt volumes into the transit times, and the transit times are the only thing paper

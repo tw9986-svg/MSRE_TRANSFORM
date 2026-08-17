@@ -100,9 +100,19 @@ given directly.</p>
 <p>The previous <a href=\"modelica://MSRE.Components.FuelPump\">FuelPump</a> needed two
 independently fitted laws for the same rotor (an exponential with 3.4 s for the startup, a
 hyperbola with 4.0 s for the coastdown). Here the coastdown hyperbola is recovered exactly and
-the startup becomes a <code>tanh</code>, which reaches 98.7 % of rated flow at 10 s with
-<code>tau_shaft = 4.0 s</code> and so matches the reported startup as well as the fitted
-exponential did, from the same number.</p>
+the startup becomes a <code>tanh</code>, which reaches 98.7 % of rated <b>shaft speed</b> at
+10 s with <code>tau_shaft = 4.0 s</code>, from the same single number.</p>
+
+<p><b>That figure is a speed, not a flow.</b> <code>tanh(10/4) = 0.9866</code> is
+<code>omega/omega_nominal</code>; the mass flow rate is separated from it by the loop momentum
+balance and is not a property of this component at all. The two are not interchangeable, and
+early in the transient they are far apart: a lumped estimate of this loop puts the flow at
+about 3 % of rated when the shaft is already at 24 % (1 s after the start). They converge later
+because this loop's hydraulic time constant is roughly an order of magnitude shorter than
+<code>tau_shaft</code>, but that is a result about this loop, not a licence to restate one as
+the other. The flow figure must come from a run of
+<a href=\"modelica://MSRE.Experiments.PumpStartup_RotorDynamics\">PumpStartup_RotorDynamics</a>,
+which has not been carried out. See <code>docs/verification/rotor_check.py</code>.</p>
 
 <h4>Default numbers, and where they come from</h4>
 <table border=\"1\">

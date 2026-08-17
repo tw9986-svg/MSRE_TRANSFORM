@@ -36,12 +36,37 @@ measured boundary condition at all and refuses to run without one.</p>
         between the 15 hydraulically identical rings, no reversed ring, and the laminar flow
         regime the ring physics assumes</td>
     <td>yes</td></tr>
+<tr><td><a href=\"modelica://MSRE.Verification.Properties_TransitTime\">Properties_TransitTime</a></td>
+    <td>the fuel salt density the reported transit times imply, recovered without using any
+        volume this library calibrated</td>
+    <td>no, parameters only</td></tr>
+<tr><td><a href=\"modelica://MSRE.Verification.Properties_FuelSalt\">Properties_FuelSalt</a></td>
+    <td>the four property correlations against their own docstrings, the medium's
+        <code>beta_const</code> against its density slope, and the gaps against the MSRE fuel
+        salt medium TRANSFORM ships</td>
+    <td>no, parameters only</td></tr>
 </table>
 
 <h4>Status</h4>
-<p><code>Analytic_DriftReactivity</code> has been evaluated numerically outside Modelica and
-its assertions pass with margin. <code>Transient_DriftReactivity</code> and
-<code>Steady_LoopBalance</code> have never been run: no Modelica compiler was available while
-this library was written. Treat them as stated acceptance criteria rather than as results.</p>
+<table border=\"1\">
+<tr><th>Model</th><th>Translated?</th><th>Simulated?</th><th>Checked how</th></tr>
+<tr><td><code>Analytic_DriftReactivity</code></td><td>no</td><td>no</td>
+    <td>evaluated numerically outside Modelica; passes with margin</td></tr>
+<tr><td><code>Properties_TransitTime</code></td><td>no</td><td>no</td>
+    <td>evaluated numerically outside Modelica; passes with margin</td></tr>
+<tr><td><code>Properties_FuelSalt</code></td><td>no</td><td>no</td>
+    <td><code>docs/verification/property_check.py</code> runs the same checks and passes</td></tr>
+<tr><td><code>Transient_DriftReactivity</code></td><td>no</td><td>no</td><td>&mdash;</td></tr>
+<tr><td><code>Steady_LoopBalance</code></td><td>partly &mdash; Dymola 2026x reported two errors,
+    both since addressed at source; not re-translated</td><td>no</td><td>&mdash;</td></tr>
+</table>
+
+<p><b>Nothing in this package has been simulated.</b> No Modelica compiler, no Modelica Standard
+Library and no TRANSFORM installation exist in the environment these models were written and
+last revised in; the raw evidence is <code>docs/verification/toolchain_probe.log</code>. The
+first three rows are checkable at parameter time and have been checked by independent
+re-implementation, which is worth something but is not the same as translating the Modelica.
+Treat every tolerance in this package as a stated acceptance criterion rather than an observed
+result.</p>
 </html>"));
 end Verification;

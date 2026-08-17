@@ -1,0 +1,47 @@
+MSRE_TRANSFORM Modelica toolchain probe
+date (UTC)  : 2026-08-17T16:05:37Z
+branch      : claude/msre-benchmarking-architecture-i35tb0
+commit SHA  : 9ef44e43091169de08bc9c45fe9aced208159bcb
+worktree    : 0 modified path(s)
+kernel      : Linux 6.18.5-fc-v20 x86_64 GNU/Linux
+distro      : Ubuntu 24.04.4 LTS
+
+--- 1. Modelica compilers on PATH -------------------------------------
+absent  omc
+absent  OMEdit
+absent  OMSimulator
+absent  dymola
+absent  dymosim
+absent  jmodelica.py
+absent  pymodelica
+absent  modelicac
+absent  openmodelica
+
+--- 2. 'omc --version' verbatim ---------------------------------------
+/bin/bash: line 63: omc: command not found
+
+--- 3. 'dymola --version' verbatim ------------------------------------
+/bin/bash: line 66: dymola: command not found
+
+--- 4. Distribution packages ------------------------------------------
+$ apt-get download --print-uris openmodelica
+E: Unable to locate package openmodelica
+$ dpkg -l | grep -iE 'modelica|omc'
+(no matching packages installed)
+
+--- 5. Upstream OpenModelica apt repository reachability ---------------
+$ curl -sS -o /dev/null -w '%{http_code}' https://build.openmodelica.org/
+curl: (56) CONNECT tunnel failed, response 403
+000
+
+--- 6. Modelica Standard Library / TRANSFORM on disk -------------------
+MODELICAPATH = '<unset>'
+/tmp/claude-0/-home-user-MSRE-TRANSFORM/50bb6b68-0951-4f77-ac6a-bf98b034442d/scratchpad/tf/TRANSFORM
+
+--- 7. Verdict ---------------------------------------------------------
+BLOCKED_NOT_RUN
+No Modelica compiler is installed; the OpenModelica repository is refused by the
+network egress proxy (403 on CONNECT); and neither the Modelica Standard Library nor
+TRANSFORM is present on disk. All three would be required. MSRE.Experiments.
+PumpStartup_RotorDynamics was therefore NOT translated and NOT simulated in this
+session, and no claim about its compile or run status is made below.
