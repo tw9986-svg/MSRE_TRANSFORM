@@ -426,3 +426,85 @@ recorded as the open item below.
 present in this environment, so `checkModel` and the property verification model were not run.
 The correlations were verified numerically outside Modelica against the values in the table
 above; the edited files were checked for Modelica string/comment balance.
+
+---
+
+## Phase 4 — Core geometry rebuilt from ORNL/INL hardware dimensions
+
+**Scope:** the fuel-channel block of `Data/Geometry.mo` and the matching component defaults.
+Plenum, downcomer and external-loop geometry are deliberately left for the next commit.
+
+### Decisions taken
+
+| # | Decision | Rationale |
+|---|---|---|
+| 16 | The Mao et al. core geometry (`A_core_total = 0.4315 m²`, `H_channels = 1.6406 m`) is retired | It is 32 % larger than the documented channel cross-section of 1140 MSRE channels. It was the quantity that made `tau_core_nominal` land on the reported 9.56 s, so keeping it meant the benchmark was reproduced by an unsourced area. |
+| 17 | Core geometry is derived from hardware dimensions, not entered | `w_channel`, `h_channel`, `r_channelCorner`, `H_channels` and `nChannels_total` are the only inputs; `A_channel`, `perimeter_channel`, `Dh_channel`, `A_core_total` and `V_channels` are all `final parameter`. `Dh_channel` in particular was previously a hand-entered 0.7 in that did not follow from any area or perimeter in the record. |
+| 18 | Volumes are **not** re-derived from the Cantor density to restore the reported transit times | Doing so makes geometry a function of the property correlation and zeroes `err_m_core`, which is the only indicator that anything disagrees. This is the same option-B policy as Phase 2. |
+| 19 | The Mao values are retained as an inert legacy block, labelled *Mao et al. reference geometry — not active* | Provenance change stays a computable comparison (`err_V_channels_Mao`) instead of a remark in a commit message. |
+| 20 | `D_graphiteStack` becomes the core container inner diameter, 1.40335 m (55.25 in) | The previous 1.26 m had no stated source. Graphite volume follows from it and the channel area. |
+| 21 | INL RZ porous-medium parameters (`core_porosity = 0.2228` and the equivalent-geometry set) are **not** adopted | This baseline is a 1-D channel model, not an RZ multiphysics model. Porosity is an output of the channel geometry here, not an input. |
+
+### Numbers established
+
+| Quantity | Mao (legacy) | ORNL/INL hardware (active) | Δ |
+|---|---|---|---|
+| `A_channel` | 3.785088e-4 m² | **2.875244e-4 m²** | −24.0 % |
+| `perimeter_channel` | 0.085154 m | **0.072559 m** | −14.8 % |
+| `Dh_channel` | 0.01778 m (hand-entered) | **0.015851 m** (derived) | −10.9 % |
+| `A_core_total` | 0.4315 m² | **0.327778 m²** | −24.0 % |
+| `H_channels` | 1.6406 m | **1.6256 m** | −0.9 % |
+| `V_channels` | 0.707919 m³ | **0.532836 m³** | −24.7 % |
+| `V_graphite` | 1.33774 m³ | **1.98157 m³** | +48.1 % |
+| `r_graphite_inner` / `outer` | 0.013553 / 0.020282 m | **0.011548 / 0.021765 m** | — |
+
+Derived at `d_fuel_ref = 2249.3 kg/m³` (unchanged, ORNL-TM-4865 at 908 K):
+
+| | paper | this record | error |
+|---|---|---|---|
+| core mass | 1606 kg | **1212 kg** | `err_m_core` **−24.5 %** |
+| loop mass | 2712 kg | 2712 kg | `err_m_loop` 0.0 % |
+| `tau_core_nominal` | 9.56 s | **7.22 s** | −24.5 % |
+| `tau_system_nominal` | 25.63 s | **23.36 s** | −8.9 % |
+
+### The finding
+
+**1606 kg of fuel salt does not fit in 1140 channels of documented cross-section.** It would
+need 3014 kg/m³, against 2196.5 (Cantor) and 2249.3 (ORNL-TM-4865) — 34 % high. Earlier
+revisions of this record read the same comparison in the opposite direction, using an untraced
+channel volume of 0.7266 m³ and the Mao area, and concluded the *density* was wrong. With the
+channel geometry built from hardware that conclusion no longer follows: the discrepancy points
+at **what the MARS core node contains** (plenum, bypass or annulus salt counted as core?)
+rather than at any property correlation.
+
+### Consequential assert failures — expected, not fixed
+
+Three asserts now fail, and they fail because they are doing their job. None was relaxed:
+
+| Model | Assert | Value | Limit |
+|---|---|---|---|
+| `Verification/Steady_LoopBalance.mo:60` | `tau_system_nominal` vs 25.63 s | **23.36 s** | ±0.15 s |
+| `Verification/Properties_TransitTime.mo:79` | implied vs Compere density | **+34.0 %** | ±5 % |
+| `Verification/Analytic_DriftReactivity.mo:64` | natural-circulation drift | **1.49 / 10.13 pcm** | 0.9 ± 0.2 / 6.7 ± 0.5 pcm |
+
+Forced-circulation drift reactivity (U-235, Eq. 8, Cantor at 908 K) moves from 231.0 pcm to
+**277.0 pcm** against the paper's 228.4 pcm — a +48.6 pcm gap, well outside
+`Transient_DriftReactivity.tol_rho_pcm = 8`.
+
+### Open items
+
+- **O-12.** Definition of the MARS core node. Blocks any reconciliation of the −24.5 %.
+- **O-13.** `d_fuel_ref = 2249.3 kg/m³` is still the ORNL-TM-4865 value while the medium runs on
+  Cantor. It cannot simply be switched: `V_flow_pump_nominal`, `P_pump_hydraulic`,
+  `tau_pump_hyd_nominal` and `J_pump` are all derived from it, and pump parameters were out of
+  scope here. Needs a decision on whether the pump duty follows the medium.
+- **O-14.** The three failing asserts need to be restated as reported diagnostics or given
+  hardware-based targets. They must not be silently widened.
+- **O-15.** `dz_channels = 1.626 m` still differs from `H_channels = 1.6256 m` by 0.4 mm. Left
+  alone because the elevation set closes through `dz_downcomer`, which is next-commit scope.
+
+### Verification status
+
+`BLOCKED_NOT_RUN` — no Modelica toolchain in this environment. All values above were computed
+by hand outside Modelica from the same expressions now in the record; `Data/Geometry.mo` was
+checked for Modelica string and comment balance.

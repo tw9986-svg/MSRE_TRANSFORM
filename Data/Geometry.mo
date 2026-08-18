@@ -37,27 +37,42 @@ record Geometry "MSRE nodalization and geometry (Modelica counterpart of the MAR
   /* ------------------------------------------------------------------
      Fuel channels (graphite-moderated core region)
      ------------------------------------------------------------------ */
+  /* Primary hardware dimensions. Everything below them is a consequence: no flow area, no
+     hydraulic diameter and no volume in this block is entered by hand or fitted to a reported
+     transit time or inventory. See the record documentation for the provenance and for the
+     Mao geometry this replaced. */
   parameter Real nChannels_total=1140 "Total # of vertical fuel channels";
   parameter Real nChannels[nRings]=fill(nChannels_total/nRings, nRings)
     "# of channels per radial ring (equal-area rings)";
-  parameter SI.Length H_channels=1.6406
-    "Active height of the fuel channels (Mao et al., Energies 2026, Table 2)";
-  parameter SI.Area A_core_total=0.4315
-    "Total core flow area (Mao et al., Energies 2026, Table 2)";
-  final parameter SI.Area A_channel=A_core_total/nChannels_total
-    "Flow area of a single fuel channel";
-  parameter SI.Length Dh_channel=0.01778 "Hydraulic diameter of a single fuel channel (0.7 in)";
-  final parameter SI.Volume V_channels=A_core_total*H_channels
-    "Total fuel salt volume inside the graphite channels";
+  parameter SI.Length H_channels=1.6256
+    "Active height of the fuel channels (64 in, ORNL/INL MSRE hardware)";
+  parameter SI.Length w_channel=0.03048
+    "Width of a single fuel channel (1.2 in, ORNL/INL MSRE hardware)";
+  parameter SI.Length h_channel=0.01016
+    "Depth of a single fuel channel (0.4 in, ORNL/INL MSRE hardware)";
+  parameter SI.Length r_channelCorner=0.00508
+    "Rounded corner radius of a single fuel channel (0.2 in, ORNL/INL MSRE hardware)";
 
-  final parameter SI.Length perimeter_channel=4*A_channel/Dh_channel
-    "Wetted perimeter of a single fuel channel";
+  /* A fuel channel is a 1.2 x 0.4 in rectangle with all four corners rounded at 0.2 in. Each
+     rounded corner removes (1 - pi/4)*r^2 of area and replaces 2r of straight wall with a
+     quarter arc of length pi*r/2. */
+  final parameter SI.Area A_channel=w_channel*h_channel - (4 - pi)*r_channelCorner^2
+    "Flow area of a single fuel channel (2.87524e-4 m2)";
+  final parameter SI.Length perimeter_channel=2*(w_channel + h_channel) - 4*(2 - pi/2)*
+      r_channelCorner "Wetted perimeter of a single fuel channel (0.072559 m)";
+  final parameter SI.Length Dh_channel=4*A_channel/perimeter_channel
+    "Hydraulic diameter of a single fuel channel (0.015851 m)";
+  final parameter SI.Area A_core_total=nChannels_total*A_channel
+    "Total core flow area (0.327778 m2)";
+  final parameter SI.Volume V_channels=A_core_total*H_channels
+    "Total fuel salt volume inside the graphite channels (0.532836 m3)";
 
   /* Graphite: each channel is represented by an equivalent annulus of graphite. Its inner
      radius reproduces the wetted perimeter of the real (grooved) channel and its outer radius
      reproduces the per-channel share of the graphite stack, so that both the convective area
      and the graphite heat capacity are preserved. */
-  parameter SI.Length D_graphiteStack=1.26 "Diameter of the graphite stack";
+  parameter SI.Length D_graphiteStack=1.40335
+    "Diameter of the graphite stack, taken as the core container inner diameter (55.25 in, ORNL/INL MSRE hardware)";
   final parameter SI.Area A_graphite_perChannel=(pi/4*D_graphiteStack^2 - A_core_total)/
       nChannels_total
     "Graphite cross-section per fuel channel: the stack area not taken by the channels, shared out";
@@ -234,6 +249,29 @@ record Geometry "MSRE nodalization and geometry (Modelica counterpart of the MAR
   final parameter SIadd.NonDim err_m_loop=m_fuel_loop_model/m_fuel_loop_paper - 1
     "Relative loop inventory error against the paper";
 
+  /* ------------------------------------------------------------------
+     Legacy core geometry: Mao et al. reference geometry - not active
+
+     The values this record used before the core geometry was taken from the ORNL/INL hardware
+     dimensions. Nothing references them; they are kept so that the provenance change is a
+     computable comparison rather than a remark in a commit message. Do not use them for
+     results.
+     ------------------------------------------------------------------ */
+  final parameter SI.Length H_channels_Mao=1.6406
+    "Mao et al. reference geometry - not active: active channel height (Energies 2026, Table 2)";
+  final parameter SI.Area A_core_total_Mao=0.4315
+    "Mao et al. reference geometry - not active: total core flow area (Energies 2026, Table 2)";
+  final parameter SI.Area A_channel_Mao=A_core_total_Mao/nChannels_total
+    "Mao et al. reference geometry - not active: flow area of a single fuel channel (3.785088e-4 m2)";
+  final parameter SI.Length Dh_channel_Mao=0.01778
+    "Mao et al. reference geometry - not active: channel hydraulic diameter, entered by hand as 0.7 in";
+  final parameter SI.Length D_graphiteStack_Mao=1.26
+    "Mao et al. reference geometry - not active: graphite stack diameter";
+  final parameter SI.Volume V_channels_Mao=A_core_total_Mao*H_channels_Mao
+    "Mao et al. reference geometry - not active: channel volume (0.707919 m3)";
+  final parameter SIadd.NonDim err_V_channels_Mao=V_channels/V_channels_Mao - 1
+    "Change in channel volume caused by moving from the Mao geometry to the hardware geometry (-24.73 %)";
+
   final parameter SI.Length dz_closure=dz_lowerPlenum + dz_channels + dz_upperPlenum +
       dz_outletPipe + dz_pumpBowl + dz_pumpToHX + dz_hxShell + dz_hxToVessel + dz_downcomer
     "Sum of all elevation rises around the loop, which must be zero";
@@ -241,7 +279,8 @@ record Geometry "MSRE nodalization and geometry (Modelica counterpart of the MAR
   annotation (defaultComponentName="geometry", Documentation(info="<html>
 <h4>Where the numbers come from</h4>
 <p>Documented MSRE hardware dimensions are used wherever they are available:
-1140 fuel channels, 1.626 m active height, 5 in sch 40 loop piping, a 16 in heat-exchanger
+1140 fuel channels of 1.2 x 0.4 in with 0.2 in rounded corners, 1.6256 m active height,
+5 in sch 40 loop piping, a 16 in heat-exchanger
 shell with 163 tubes of 0.5 in OD giving 24.1 m2 of heat transfer area, a rated fuel flow of
 168 kg/s and a rated coolant flow of about 850 gpm.</p>
 
@@ -250,17 +289,35 @@ volumes here are built from documented hardware wherever that exists and from th
 inventory where it does not. The distinction matters when reading the agreement below.</p>
 <table border=\"1\">
 <tr><th></th><th>this model</th><th>paper (MARS)</th><th>fitted?</th></tr>
-<tr><td>core volume</td><td>0.71403 m3</td><td>-</td><td>no</td></tr>
-<tr><td>core transit time at 168 kg/s</td><td>9.56 s</td><td>9.56 s</td><td><b>no</b></td></tr>
+<tr><td>core volume</td><td>0.53895 m3</td><td>-</td><td>no</td></tr>
+<tr><td>core transit time at 168 kg/s</td><td>7.22 s</td><td>9.56 s</td><td>no</td></tr>
 <tr><td>loop transit time at 168 kg/s</td><td>16.14 s</td><td>16.14 s</td><td>yes</td></tr>
-<tr><td>system transit time</td><td>25.70 s</td><td>25.63 s (measured 25.2 s)</td><td>-</td></tr>
+<tr><td>system transit time</td><td>23.36 s</td><td>25.63 s (measured 25.2 s)</td><td>-</td></tr>
 </table>
 
-<p><b>The core transit time is a prediction, not a calibration.</b> Its volume is the published
-core flow area of Mao et al. (0.4315 m2 x 1.6406 m) plus two small plenum nodes, and the
-density is the ORNL-TM-4865 correlation evaluated at 908 K. Neither was adjusted to hit 9.56 s;
-they give 9.56 s. Since paper Eq. 8 depends on the transit times and on nothing else, this is
-the one place where this model reproduces the benchmark from independent inputs.</p>
+<h4>The core transit time is a prediction, and it now disagrees with the paper</h4>
+<p>The core volume is the ORNL/INL hardware channel geometry (1140 channels of
+1.2 x 0.4 in with 0.2 in rounded corners, 1.6256 m tall) plus two small plenum nodes, and the
+density is the ORNL-TM-4865 correlation at 908 K. Nothing in it was adjusted to hit a reported
+number, and it does not hit one: <code>tau_core_nominal</code> comes out at 7.22 s against the
+9.56 s the paper reports, which is <b>-24.5 %</b>.</p>
+
+<p>This gap is the deliverable of the geometry change, not a defect in it. The core geometry
+previously came from the flow area of Mao et al. (0.4315 m2), which is 32 % larger than the
+1140 channels of documented cross-section actually add up to (0.32778 m2), and it was that
+larger area which made <code>tau_core_nominal</code> land on 9.56 s. The two cannot both be
+right. Re-deriving the volumes from the density to close the gap was considered and rejected:
+it would make the geometry a function of the property correlation and would destroy the
+diagnostic value of <code>err_m_core</code>. See the legacy block above for the Mao values,
+which are retained for comparison.</p>
+
+<p><b>Open: what the MARS core node contains.</b> 1606 kg of salt cannot fit in 1140 channels
+of published cross-section at any plausible MSRE fuel-salt density - it would need
+3014 kg/m3. Either the MARS core node includes plenum, bypass or annulus salt that this
+record counts as loop, or the flow area in use is not the channel cross-section. Until that is
+settled the -24.5 % is an honest statement of a real disagreement between the hardware
+dimensions and the reported transit time, and it should not be closed by adjusting a
+volume.</p>
 
 <p><b>The loop transit time is not.</b> <code>V_downcomer</code> is the item that absorbs the
 balance of the loop inventory and it was re-derived from <code>m_fuel_loop_paper</code>, so
@@ -312,23 +369,26 @@ benchmark therefore pins the circulating inventory at</p>
 <table border=\"1\">
 <tr><th></th><th>paper implies</th><th>this record holds</th><th>error</th></tr>
 <tr><td>core</td><td><code>m_fuel_core_paper</code> 1606 kg</td>
-    <td><code>m_fuel_core_model</code> 1751 kg</td><td><code>err_m_core</code> +9.0 %</td></tr>
+    <td><code>m_fuel_core_model</code> 1212 kg</td><td><code>err_m_core</code> -24.5 %</td></tr>
 <tr><td>external loop</td><td><code>m_fuel_loop_paper</code> 2712 kg</td>
-    <td><code>m_fuel_loop_model</code> 2956 kg</td><td><code>err_m_loop</code> +9.0 %</td></tr>
+    <td><code>m_fuel_loop_model</code> 2712 kg</td><td><code>err_m_loop</code> 0.0 %</td></tr>
 </table>
-<p>and leaves the volume/density split of that mass undetermined. The volumes here were
-obtained by dividing those masses by the <i>old</i> density, so both errors were zero before
-Phase 2 and are now the density ratio.</p>
+<p>and leaves the volume/density split of that mass undetermined. The loop error is zero
+because <code>V_downcomer</code> was obtained by dividing <code>m_fuel_loop_paper</code> by
+<code>d_fuel_ref</code>, which is circular and is the reason the loop side proves nothing. The
+core error is not zero because the core volume is now hardware and is allowed to disagree.</p>
 
-<p>The core side is close to resolvable from published data, and this is the useful part.
-<code>V_channels</code> is <i>not</i> a free quantity: it is 0.7266 m3 from documented hardware
-alone (1140 channels of 1.626 m), and the MARS core is those channels plus two small plenum
-nodes. Dividing 1606 kg by the channel volume gives 2210 kg/m3, and doing the same with the
-independently published core flow area of Mao et al. (0.4315 m2 x 1.6406 m) gives 2269 kg/m3.
-Both sit within about 2 % of the ORNL-TM-4865 value of 2249 kg/m3 and 7 to 10 % away from the
-correlation this library used before, which is the evidence that the density was the thing that
-was wrong. Re-deriving <code>V_channels</code> from the Mao area would bring
-<code>tau_core_nominal</code> to 9.64 s against the reported 9.56 s with nothing fitted.</p>
+<p>The core side is now settled on the hardware and is <i>not</i> free:
+<code>V_channels = 0.53284 m3</code> follows from 1140 channels of 2.87524e-4 m2 over
+1.6256 m, with nothing left to adjust. Dividing 1606 kg by that volume gives an implied
+density of 3014 kg/m3, which no MSRE fuel-salt correlation comes near - Cantor gives
+2196.5 kg/m3 at 908 K and ORNL-TM-4865 gives 2249.3. Earlier revisions of this record read
+the same comparison the other way round, using a channel volume of 0.7266 m3 that was never
+traced to a hardware dimension and the Mao flow area of 0.4315 m2, and concluded that the
+density was the quantity in error. With the channel geometry now built from the ORNL/INL
+dimensions, that conclusion no longer follows: the implied density is 34 % above the traced
+correlations, which points at the definition of the core node rather than at any property
+correlation.</p>
 
 <p>The loop side cannot be settled the same way: <code>V_downcomer</code> was always the item
 that absorbed the balance of the inventory, so it has no independent value to check against and

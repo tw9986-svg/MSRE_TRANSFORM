@@ -62,8 +62,11 @@ The component volumes in <a href=\"modelica://MSRE.Data.Geometry\">MSRE.Data.Geo
 were therefore chosen to reproduce the quantities that actually govern the benchmarked
 physics, namely the reported fuel-salt transit times
 (core 9.56 s, external loop 16.14 s, system 25.63 s at 168 kg/s) together with the
-documented MSRE hardware dimensions where those are available (1140 fuel channels,
-1.626 m active height, 16 in heat-exchanger shell, 163 tubes, 24.1 m2 heat-transfer area).
+documented MSRE hardware dimensions where those are available (1140 fuel channels of
+1.2 x 0.4 in with 0.2 in rounded corners, 1.6256 m active height, 16 in heat-exchanger shell,
+163 tubes, 24.1 m2 heat-transfer area). Since Phase 4 the core geometry is built from those
+hardware dimensions alone and no longer reproduces the reported core transit time; see
+<a href=\"modelica://MSRE.Data.Geometry\">Data.Geometry</a>.
 Every one of these values is an exposed parameter. Items that are explicit estimates
 are marked in the record.</p>
 
