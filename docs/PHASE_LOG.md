@@ -719,3 +719,146 @@ They are the intended output of a hardware baseline that is not fitted to the be
 `BLOCKED_NOT_RUN` — no Modelica toolchain in this environment. Diagnostics computed by hand
 outside Modelica from the same expressions now in the record; `Data/Geometry.mo` and
 `Components/ReactorCore.mo` checked for Modelica string and comment balance.
+
+---
+
+## Phase 7 — O-13: reference-density decoupling
+
+**Scope:** density *roles*, not density *values in geometry*. No physical volume was rescaled.
+
+```
+O-13 RESOLUTION:
+The geometry/inventory reference density was migrated from the
+legacy ORNL-TM-4865/Compere value to the active Cantor property model.
+No physical volume was rescaled.
+Pump-density dependencies were audited and separated from the geometry
+reference density wherever required.
+Changes in mass and transit time are derived consequences of the new
+property model, not geometry fitting.
+Jeong-equivalent O-12 diagnostics were recomputed with the Cantor density
+but remain non-physical and inactive.
+```
+
+### Dependency graph, audited before any value changed
+
+```
+d_fuel_ref  (was 2249.3, ORNL-TM-4865)
+ ├─ m_fuel_core_model / m_fuel_loop_model ......... KEEP      (inventory reporting)
+ ├─ err_m_core / err_m_loop ....................... KEEP
+ ├─ tau_core_nominal / tau_loop_nominal / system .. KEEP
+ ├─ V_flow_ref -> A_190_01_JeongEq -> V_190_01_JeongEq ... KEEP (O-12 diagnostics)
+ ├─ V_core_JeongEq -> V_120_03_JeongEq ............ KEEP
+ ├─ V_flow_pump_nominal ........................... DECOUPLE  -> d_pump_ref
+ ├─ P_pump_hydraulic .............................. DECOUPLE  -> d_pump_ref
+ ├─ tau_pump_hyd_nominal .......................... DECOUPLE  -> d_pump_ref
+ └─ J_pump ........................................ DECOUPLE  -> d_pump_ref
+
+PrimarySystem.density_ref = Medium_fuel.density(p_system, T_start=908 K)
+ ├─ pump.d_nominal ................................ ALREADY OVERRIDDEN
+ └─ tau_core / tau_loop (reported at run time) .... ALREADY OVERRIDDEN
+
+PartialFuelPump.d_nominal = 2242 ................... LEGACY ONLY (standalone default)
+```
+
+**The finding that shaped the fix:** the four pump quantities in `Data/Geometry.mo` are read by
+nothing. `FuelPump_Dynamics` computes its own `tau_hyd_nominal` and `J` from the `d_nominal` it
+is handed, and `PrimarySystem` hands it `density_ref`, evaluated from `Medium_fuel`. So:
+
+> System-level pump density is already evaluated from Medium_fuel,
+> so Geometry.d_fuel_ref is not the active pump density during PrimarySystem simulation.
+
+The coupling was real inside the record and had **zero** effect on any simulation.
+
+### What changed
+
+| | before | after |
+|---|---|---|
+| `d_fuel_ref` | `2249.3` hard-coded | `MSRE.Media.FuelSalt.Utilities.d_T(T_zeroPower)` = **2196.5143** |
+| `d_pump_ref` | did not exist | `MSRE.Media.FuelSalt.Utilities.d_T(T_zeroPower)` = **2196.5143** |
+| `d_fuel_ref_legacy_Compere` | did not exist | `2249.3`, LEGACY, connected to nothing |
+| `PartialFuelPump.d_nominal` default | 2242 (Compere @ 922 K) | 2188.646 (Cantor @ 922 K) — standalone default only |
+
+`d_fuel_ref` and `d_pump_ref` evaluate to the same number today. **The separation is structural,
+not numerical**: a later change to one cannot move the other. Saying otherwise would overstate
+what this commit bought.
+
+### Derived changes — inventory and transit time
+
+| Quantity | Before | After Cantor | Δ |
+|---|---:|---:|---:|
+| `d_fuel_ref` | 2249.3 | **2196.5143** | −2.347 % |
+| `m_fuel_core_model` | 1212.25 kg | **1183.80 kg** | −2.35 % |
+| `m_fuel_loop_model` | 2351.07 kg | **2295.89 kg** | −2.35 % |
+| `m_fuel_total_model` | 3563.32 kg | **3479.69 kg** | −2.35 % |
+| `tau_core_nominal` | 7.2158 s | **7.0464 s** | −2.35 % |
+| `tau_loop_nominal` | 13.9944 s | **13.6660 s** | −2.35 % |
+| `tau_system_nominal` | 21.2102 s | **20.7125 s** | −2.35 % |
+| `V_flow_ref` | 0.074690 m³/s | **0.076485 m³/s** | +2.40 % |
+| `A_190_01_JeongEq` | 1.036322 m² | **1.061227 m²** | +2.40 % |
+| `V_190_01_JeongEq` | 0.065806 m³ | **0.067388 m³** | +2.40 % |
+| `V_core_JeongEq` | 0.714035 m³ | **0.731195 m³** | +2.40 % |
+| `V_120_03_JeongEq` | 0.115393 m³ | **0.130971 m³** | **+13.50 %** |
+
+`V_120_03_JeongEq` moves furthest because it is a difference of two larger numbers. It is now
+**169 %** of the whole assumed lower plenum (was 148 %), and `V_190_01_JeongEq` is **22.1×** the
+legacy boundary-node volume (was 21.5×) and 87 % of the assumed upper plenum. Classification
+unchanged: REFERENCE / BENCHMARK-EQUIVALENT / NOT PHYSICAL / NOT ACTIVE. Nothing was connected
+to `V_*Plenum_core`.
+
+Error metrics against Jeong widen, as they must when the density falls and the volumes do not:
+
+| | paper | active | before | after |
+|---|---:|---:|---:|---:|
+| `err_m_core` | — | 1184 vs 1606 kg | −24.5 % | **−26.3 %** |
+| `err_m_loop` | — | 2296 vs 2712 kg | −13.3 % | **−15.3 %** |
+| circulating | 4318 kg | 3480 kg | −17.5 % | **−19.4 %** |
+| τ_core / τ_loop / τ_total | 9.56 / 16.14 / 25.63 s | 7.05 / 13.67 / 20.71 s | — | −26.3 / −15.3 / −19.2 % |
+
+Measured system transit time 25.2 s. Comparison only — no geometry was adjusted.
+
+One consistency gain worth noting: the drift-reactivity figures reported in Phases 4–6 were
+already computed at the Cantor density, while the record's own `tau_*_nominal` were still at
+2249.3. Those two now agree.
+
+### Pump diagnostics — `DERIVED_CHANGE_FROM_DENSITY_ONLY`
+
+| Quantity | Before | After | Effect on the simulation |
+|---|---:|---:|---|
+| `V_flow_pump_nominal` | 0.074690 m³/s | 0.076485 m³/s | **none** — diagnostic |
+| `P_pump_hydraulic` | 22.407 kW | 22.945 kW | **none** — diagnostic |
+| `tau_pump_hyd_nominal` | 230.572 N·m | 236.113 N·m | **none** — diagnostic |
+| `J_pump` | 7.5924 kg·m² | 7.7749 kg·m² | **none** — diagnostic |
+
+All four move by exactly +2.403 %, the inverse of the density change, and by nothing else. No
+pump parameter was retuned to compensate. `tau_pump_shaft = 4.0 s` — the single fitted pump
+quantity, and the one that actually sets the transients — is untouched, so every pump speed
+history is unchanged.
+
+### Verification asserts
+
+`EXPECTED_MISMATCH_DURING_PARTIAL_GEOMETRY_BASELINE`, **no tolerance modified**:
+
+| Model | Assert | Before | After |
+|---|---|---:|---:|
+| `Steady_LoopBalance` | τ_system vs 25.63 ± 0.15 s | 21.21 s | **20.71 s** |
+| `Properties_TransitTime` | implied vs Compere density, ±5 % | +34.0 % | unchanged (calls `d_Compere` directly) |
+| `Analytic_DriftReactivity` | 0.9 ± 0.2 / 6.7 ± 0.5 pcm | 1.49 / 10.12 | unchanged (calls `d_Compere` directly) |
+| `Transient_DriftReactivity` | 228.4 pcm, tol 8 | 269.9 pcm | unchanged (already at Cantor) |
+
+### Open items
+
+- **O-13 closed.** Roles separated, active reference on the property model, legacy preserved.
+- **O-18 (new).** `Verification/Analytic_DriftReactivity.mo:29` and `Properties_TransitTime.mo`
+  still call `MSRE_Properties.d_Compere` directly, so two verification models now run on a
+  density the library does not use. Deliberately not touched here — §14 forbade modifying the
+  verification models in this commit — but the double standard should be closed next.
+- **O-12** (120-03 / 190-01 physical volumes), **O-14** (failing asserts), **O-15**
+  (`dz_channels`), **O-16** (HX geometry + calibration), **O-17** (unsourced loop dimensions)
+  unchanged.
+
+### Verification status
+
+`BLOCKED_NOT_RUN` — no Modelica toolchain, no MSL/TRANSFORM installation. Every number above
+was computed by hand outside Modelica from the expressions now in the record. These are hand
+calculations, not compile or simulation results. Edited files were checked for Modelica string
+and comment balance.

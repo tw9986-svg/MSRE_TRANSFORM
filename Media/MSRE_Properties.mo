@@ -180,7 +180,10 @@ medium interface.</li>
 <code>reference_h</code> convention <code>cp*(T_ref - 273.15)</code>.</li>
 <li><code>Data.Geometry.d_fuel_ref = 2249.3 kg/m3</code> and
 <code>BaseClasses.PartialFuelPump.d_nominal = 2242 kg/m3</code>, both ORNL-TM-4865 numbers
-belonging to the geometry/pump side, deliberately left alone by this property-only change.</li>
+belonging to the geometry/pump side, deliberately left alone by this property-only change.
+<b>Both were migrated to this correlation later, under open item O-13</b>:
+<code>d_fuel_ref</code> is now <code>FuelSalt.Utilities.d_T(908 K)</code> and the pump default
+is the 922 K value, 2188.646 kg/m3.</li>
 </ul>
 <p><code>FuelSalt.beta_const</code> is the one derived parameter that did move, from 2.2880e-4
 to 2.5678e-4 1/K, because it is nothing but <code>0.562/2188.65</code> - the isobaric expansion
