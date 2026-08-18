@@ -76,10 +76,12 @@ in TRANSFORM.</p>
 <p>The coolant salt <i>is</i> a TRANSFORM built-in
 (<code>LinearFLiBe_9999Li7_pT</code>). The fuel salt is not: TRANSFORM's only fuelled salt is
 <code>LinearFLiBe_12Th_05U_pT</code>, the MSBR salt LiF-BeF2-ThF4-UF4 71.5-16-12-0.5 mol%,
-whose 12 mol% ThF4 makes it 62 % denser than the MSRE fuel salt (3337 vs 2055 kg/m3 at 922 K).
-Substituting it at the rated 168 kg/s would stretch the fuel-salt transit time from 25.5 s to
-41.5 s and so destroy the delayed-neutron-precursor drift behaviour that these benchmarks
-exist to test. <a href=\"modelica://MSRE.Media.FuelSalt\">FuelSalt</a> is therefore defined
-here, using the same TRANSFORM base class as the built-in salts.</p>
+whose 12 mol% ThF4 makes it 52 % denser than the MSRE fuel salt (3337 vs 2189 kg/m3 at 922 K).
+Substituting it at the rated 168 kg/s would stretch the fuel-salt transit time by the same
+factor, from 25.5 s to roughly 39 s, and so destroy the delayed-neutron-precursor drift
+behaviour that these benchmarks exist to test. <a href=\"modelica://MSRE.Media.FuelSalt\">FuelSalt</a> is therefore defined
+here, using the same TRANSFORM base class as the built-in salts. Its properties are those of
+Cantor, ORNL-TM-2316 (1968), as used by the INL MSRE VTB/SAM model; see
+<a href=\"modelica://MSRE.Media.MSRE_Properties\">MSRE_Properties</a>.</p>
 </html>"));
 end Media;
