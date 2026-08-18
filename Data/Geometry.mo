@@ -167,9 +167,9 @@ record Geometry "MSRE nodalization and geometry (Modelica counterpart of the MAR
      The physical volumes remain OPEN. See the JeongEq diagnostics below for what the paper's
      own sensitivity study implies about 190-01, and note that it is 21.5 times this value. */
   parameter SI.Volume V_lowerPlenum_core=0.003055
-    "LEGACY/OPEN | benchmark-derived, not physical: fuel salt volume of MARS Volume 120-03, the lower plenum node inside the reactor core";
+    "LEGACY/OPEN | benchmark-derived, not physical: fuel salt volume of MARS Volume 120-03. O-12B source review found no independent value; still OPEN";
   parameter SI.Volume V_upperPlenum_core=0.003055
-    "LEGACY/OPEN | benchmark-derived, not physical: fuel salt volume of MARS Volume 190-01, the upper plenum node inside the reactor core";
+    "LEGACY/OPEN | benchmark-derived, not physical: fuel salt volume of MARS Volume 190-01. O-12B found Jeong's length but no independent flow area; still OPEN";
 
   /* The plena are given a uniform bore and non-uniform node lengths, so each core node's length
      is its share of the plenum volume. Both inherit the LEGACY/OPEN status of the volumes they
@@ -454,6 +454,81 @@ that it travels with the parameter:</p>
         <code>D_pipe_sch40</code>, the <code>*_Mao</code> set</td><td>-</td>
     <td>LEGACY</td><td>retired fits, inert</td></tr>
 </table>
+
+<h4>O-12B: what the public sources say about the two boundary nodes</h4>
+<p>A source review was carried out to try to give 120-03 and 190-01 physical volumes instead of
+the legacy inventory-derived 3.055 litres. <b>The outcome was to keep them OPEN.</b> The
+findings are recorded here because they are decision-relevant, not because they were adopted.</p>
+
+<p><b>Provenance warning.</b> None of the figures in this section could be read from its
+original document: every PDF host (info.ornl.gov, publications.anl.gov, osti.gov,
+mooseframework.inl.gov, moltensalt.org) is unreachable from the environment this review was run
+in. They are as rendered by a search index from the ANL SAM MSRE model report and the ORNL MSRE
+TRANSFORM status report, so they are <b>secondary and unverified</b>, and no table, figure or
+page number could be attached to any of them. They must not be promoted to REFERENCE parameters
+until someone reads them in the source.</p>
+
+<table border=\"1\">
+<tr><th>Quantity</th><th>Value as reported</th><th>Attributed to</th><th>Definition class</th></tr>
+<tr><td>core height</td><td>1.6637 m (65.5 in)</td><td>ANL SAM MSRE model</td>
+    <td>code-model 1-D geometry</td></tr>
+<tr><td>lower plenum height</td><td>0.12954 m (5.1 in)</td><td>ANL SAM MSRE model</td>
+    <td>code-model 1-D geometry</td></tr>
+<tr><td>upper plenum height</td><td>0.21336 m (8.4 in)</td><td>ANL SAM MSRE model</td>
+    <td>code-model 1-D geometry</td></tr>
+<tr><td>lower plenum flow area / Dh</td><td>1.71 m2 / 1.47 m</td><td>ANL SAM MSRE model</td>
+    <td>code-model, <b>porosity set to 1.0</b></td></tr>
+<tr><td>upper plenum fluid volume</td><td>11.34 ft3 = 0.32111 m3</td>
+    <td>ORNL MSRE TRANSFORM status report</td><td>unclear</td></tr>
+<tr><td>core region radius / porosity</td><td>0.70485 m / 0.225</td><td>ANL SAM MSRE model</td>
+    <td>R-Z porous-medium equivalent</td></tr>
+</table>
+
+<h4>Physical mapping, as far as it goes</h4>
+<p><b>120-03</b> is the top slice of the lower plenum, immediately below the fuel channel
+entrance. The physical region is the lower vessel head together with 48 anti-swirl vanes, the
+main support grid, and the horizontal graphite lattice bars that the vertical stringers dowel
+into - and the salt reaches the channels through the small gaps between those bars, which carry
+most of the core pressure drop. The central part of the lattice has no horizontal bars at all.
+No axial height, open flow area or fluid volume for this region was found in any accessible
+source. The one area figure available, the SAM 1.71 m2, is the full vessel bore with
+<b>porosity 1.0, structures ignored</b>, so it is an upper bound on an open area and not a
+fluid volume of the real region. <b>120-03 stays OPEN.</b></p>
+
+<p><b>190-01</b> is the bottom slice of the upper plenum, immediately above the channel exit,
+and Jeong states its baseline axial length as 0.0635 m (2.5 in). That length is solid; what is
+missing is an independent flow area to multiply it by. Four candidates were evaluated:</p>
+<table border=\"1\">
+<tr><th>Candidate area</th><th>Value</th><th>V at L = 0.0635 m</th><th>Verdict</th></tr>
+<tr><td>reactor vessel bore (58 in)</td><td>1.70456 m2</td><td>0.108240 m3</td>
+    <td>ignores the core container wall</td></tr>
+<tr><td>core container bore (55.5 in)</td><td>1.56079 m2</td><td>0.099110 m3</td>
+    <td>ignores displaced structure</td></tr>
+<tr><td>SAM upper plenum mean area (0.32111/0.21336)</td><td>1.50503 m2</td>
+    <td>0.095569 m3</td><td>unverified, and the plenum is domed rather than prismatic</td></tr>
+<tr><td><i>A_190_01_JeongEq</i></td><td><i>1.06123 m2</i></td><td><i>0.067388 m3</i></td>
+    <td><b>excluded</b> - it is derived from a MARS result</td></tr>
+</table>
+<p>The three physical candidates span 0.0956 to 0.1082 m3 and none of them was traceable to a
+statement of what the region actually contains. They also disagree with the Jeong-equivalent
+figure by 42 to 61 %, which is far too wide to call a reconstruction. Choosing whichever came
+closest to 1.06123 m2 would be benchmark fitting with extra steps. <b>190-01 stays OPEN.</b></p>
+
+<h4>The collateral finding, which is the useful part</h4>
+<p>The two <i>plenum totals</i> in this record are assumptions of 0.0777 m3 each. The figures
+above put the lower plenum at about 0.2215 m3 and the upper plenum at about 0.3211 m3 -
+<b>2.9 and 4.1 times larger</b>. Even discounted for the porosity-1.0 treatment, that is the
+right order of magnitude to matter: it is independent support for the first of the two readings
+offered under O-12, that the MARS plena are much larger than this record assumes, and it points
+at <code>V_lowerPlenum</code> and <code>V_upperPlenum</code> rather than at the channel geometry
+as the place the missing circulating inventory is hiding. Those two parameters are O-17 scope
+and were not touched here.</p>
+
+<p>Two definition mismatches are worth recording alongside. The SAM core height of 1.6637 m
+(65.5 in) is 2.34 % longer than the 1.6256 m (64 in) active height used here, and the SAM core
+salt flow area of 0.3512 m2 (1.5608 m2 at porosity 0.225) is 7 % larger than the 0.32778 m2 that
+1140 channels of documented cross-section give. Neither was adopted: they are R-Z porous-medium
+equivalents, which this 1-D channel baseline deliberately does not use.</p>
 
 <h4>The Jeong core boundary, and what its own sensitivity implies</h4>
 <p>Jeong et al. (2026) define the reactor core as MARS Volume 120-03, the 15 x 20 channel

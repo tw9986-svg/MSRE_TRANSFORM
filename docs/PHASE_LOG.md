@@ -966,3 +966,125 @@ density.** No out-of-scope file was modified.
 verification models were **not** run. Every number above is a hand calculation performed outside
 Modelica from the expressions now in the files; they are not compile or simulation results. Both
 edited `.mo` files were checked for Modelica string and comment balance.
+
+---
+
+## Phase 9 — O-12B: physical reconstruction of the core-boundary plenum nodes
+
+```
+O-12B — PHYSICAL RECONSTRUCTION OF CORE-BOUNDARY PLENUM NODES
+Jeong defines Volumes 120-03 and 190-01 as the lower and upper
+boundaries of the reactor core.
+The previous 0.003055 m3 values are legacy inventory-derived values
+and are not accepted as physical provenance.
+ORNL/INL source geometry was reviewed to identify physical regions
+corresponding to those MARS control volumes.
+No benchmark transit-time fitting was used.
+Any active replacement is based only on independently sourced geometry.
+```
+
+**Decision: KEEP OPEN. No active geometry value changed. Documentation only.**
+
+### A. Source findings
+
+**Access limitation, stated first because it governs everything below.** Every primary and
+secondary PDF host is unreachable from this environment — `info.ornl.gov`,
+`publications.anl.gov`, `www.osti.gov`, `mooseframework.inl.gov` and `moltensalt.org` all return
+`EGRESS_BLOCKED` to WebFetch and a proxy 403 to curl. ORNL-TM-728, ORNL-TM-730 and ORNL-TM-3229
+could **not** be opened. Everything below is as rendered by a search index from the ANL SAM MSRE
+model report and the ORNL MSRE TRANSFORM status report: **secondary, unverified, and with no
+table, figure or page number attached.**
+
+| Quantity | Reported value | Attributed to | Definition class | Usable as active? |
+|---|---|---|---|---|
+| core height | 1.6637 m (65.5 in) | ANL SAM MSRE model | code-model 1-D | no |
+| lower plenum height | 0.12954 m (5.1 in) | ANL SAM MSRE model | code-model 1-D | no |
+| upper plenum height | 0.21336 m (8.4 in) | ANL SAM MSRE model | code-model 1-D | no |
+| lower plenum flow area / Dh | 1.71 m² / 1.47 m | ANL SAM MSRE model | code-model, **porosity 1.0** | no |
+| upper plenum fluid volume | 11.34 ft³ = 0.32111 m³ | ORNL MSRE TRANSFORM report | unclear | no |
+| core radius / porosity | 0.70485 m / 0.225 | ANL SAM MSRE model | R-Z porous equivalent | no — excluded by policy |
+| lower plenum internals | 48 anti-swirl vanes, main support grid, horizontal graphite lattice bars; central region has no bars | INL VTB lower-plenum CFD | qualitative | — |
+| lattice/stringer detail | 2.642 cm holes housing 2.54 cm dowels at the stringer lower end | INL VTB | hardware | — |
+
+### B. Physical mapping
+
+**120-03** — the top slice of the lower plenum, immediately below the channel entrance. The
+physical region is the lower vessel head plus 48 anti-swirl vanes, the main support grid, and
+the horizontal graphite lattice bars the stringers dowel into; the salt reaches the channels
+through the gaps between those bars, which carry most of the core pressure drop, and the central
+lattice has no bars at all. **No axial height, open flow area or fluid volume was found in any
+accessible source.** The only area figure available (SAM's 1.71 m², the full vessel bore at
+porosity 1.0) explicitly ignores those structures, so it is an upper bound on an open area, not
+a fluid volume. **OPEN.**
+
+**190-01** — the bottom slice of the upper plenum, immediately above the channel exit. Its
+length is solid (Jeong, 0.0635 m = 2.5 in); the missing piece is an independent flow area.
+
+### C. Derived geometry — candidates evaluated, none adopted
+
+| Candidate area for 190-01 | A | V = A × 0.0635 | Verdict |
+|---|---:|---:|---|
+| reactor vessel bore (58 in) | 1.70456 m² | 0.108240 m³ | ignores the core container wall |
+| core container bore (55.5 in) | 1.56079 m² | 0.099110 m³ | ignores displaced structure |
+| SAM upper plenum mean (0.32111/0.21336) | 1.50503 m² | 0.095569 m³ | unverified; plenum is domed, not prismatic |
+| *A_190_01_JeongEq* | *1.06123 m²* | *0.067388 m³* | **excluded — derived from a MARS result** |
+
+The three physical candidates span 0.0956–0.1082 m³ and disagree with the Jeong-equivalent
+figure by 42–61 %. Picking whichever landed nearest 1.06123 m² would be benchmark fitting with
+extra steps. Neither `V_lowerPlenum/3` nor `V_upperPlenum/3` was used: nothing establishes that
+the three nodes are equal-volume, and Jeong's own 2.5 in is not one third of the 8.4 in upper
+plenum (that would be 2.8 in).
+
+### D. Active-model decision — **KEEP OPEN**
+
+Against the four conditions in the task:
+
+| Condition | 120-03 | 190-01 |
+|---|---|---|
+| 1. independent source exists | **no** | length yes, area **no** |
+| 2. geometry definition unambiguous | **no** | **no** |
+| 3. MARS-node ↔ physical-region mapping explicable | qualitative only | partial |
+| 4. not a transit-time back-calculation | yes | yes |
+
+Conditions 1–3 fail. `V_lowerPlenum_core` and `V_upperPlenum_core` stay at 0.003055 m³ with
+their `LEGACY/OPEN` tag, and their description strings now record that O-12B looked and did not
+find. Nothing was connected to `V_190_01_JeongEq`.
+
+### E. Impact — none
+
+No active value changed, so `V_core` 0.538946 m³, `V_loop` 1.045243 m³, core mass 1184 kg, loop
+mass 2296 kg, τ_core 7.046 s, τ_loop 13.666 s, τ_system 20.713 s, forced drift 269.9 pcm and
+natural-circulation drift 1.562 / 10.493 pcm are all unchanged. No assertion tolerance was
+touched and no assertion changed state.
+
+### F. Remaining uncertainty, and the one genuinely new result
+
+The useful output of O-12B is not about the boundary nodes at all. **This record assumes
+0.0777 m³ for each plenum total; the reviewed figures put the lower plenum near 0.2215 m³ and
+the upper plenum near 0.3211 m³ — 2.9× and 4.1× larger.** Even discounted for the porosity-1.0
+treatment, that is independent support for the first of the two readings offered under O-12:
+the MARS plena are much larger than assumed here, and the missing circulating inventory is
+more likely hiding in `V_lowerPlenum` / `V_upperPlenum` than in the channel geometry. Those are
+O-17 scope and were deliberately not touched.
+
+Two definition mismatches recorded alongside: the SAM core height 1.6637 m is 2.34 % longer
+than the 1.6256 m used here, and the SAM core salt flow area 0.3512 m² is 7 % larger than the
+0.32778 m² that 1140 channels of documented cross-section give. Neither adopted — both are R-Z
+porous-medium equivalents, excluded by policy.
+
+**What would close O-12B:** ORNL-TM-728 (reactor vessel, core support structure, flow
+distributor), ORNL-TM-730 (core boundary) and ORNL-TM-3229 (core entrance hydraulics) read
+directly, or the Jeong MARS input deck. If the PDFs are supplied locally, or egress is opened
+to those hosts, the review can be redone against primary text with table and page numbers.
+
+### Open items
+
+- **O-12B** open. **O-12** unchanged and still the root cause of the failing assertions.
+- **O-14**, **O-15**, **O-16**, **O-17** unchanged. O-17 gains a concrete lead: the plenum
+  totals look far too small.
+
+### Verification status
+
+`BLOCKED_NOT_RUN` — no Modelica toolchain. No computation in the library changed, so no
+re-evaluation was needed; the candidate arithmetic above was done by hand outside Modelica.
+`Data/Geometry.mo` was checked for Modelica string and comment balance.
