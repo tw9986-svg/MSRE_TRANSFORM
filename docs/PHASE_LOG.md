@@ -340,3 +340,89 @@ The same check reported `Class or component 'N_pump_start' not found in PrimaryS
 `N_pump_start` has been a parameter of `PrimarySystem` since commit d55b826 (PR #7, merged), so
 either the working copy under check predates that merge or the message is a knock-on of the
 failed medium redeclaration. Re-check after pulling `main`.
+
+---
+
+## Phase 3 — Fuel salt property set replaced with Cantor / ORNL-TM-2316 (INL VTB/SAM basis)
+
+**Scope:** the `MSRE.Media.FuelSalt` medium only. Geometry, pump models, kinetics and transient
+test parameters were deliberately not touched.
+
+### Decisions taken
+
+| # | Decision | Rationale |
+|---|---|---|
+| 10 | All four fuel-salt properties come from S. Cantor, ORNL-TM-2316 (1968), in the form used by the INL MSRE VTB/SAM model | Replaces a mixed set — one traced density (Compere, ORNL-TM-4865) plus three untraced values — with a single self-consistent set from one primary source that a public reference implementation also uses. Closes decision 7 of Phase 2, which deferred cₚ, μ and k. |
+| 11 | The density fit is implemented as `2553.3 − 0.562·(T[K] − 273.15)` | The published fit takes **°C**. Implemented against a kelvin argument it gives 2035 kg/m³ at 922 K instead of 2189 — the same class of unit error Phase 2 found in the old `2575.3 − 0.5641·T[K]`. Cross-checked against the INL SAM value 2285.31 kg/m³ at 476.85 °C. |
+| 12 | The viscosity fit `8.4e-5·exp(4340/T)` is implemented against **kelvin**, with no conversion | The two fits do not use the same temperature unit; this is stated at every implementation site so it cannot be "tidied up" into consistency. |
+| 13 | The superseded values are kept as reference-only functions in `MSRE.Media.MSRE_Properties`, not deleted | `Properties_TransitTime` and `Analytic_DriftReactivity` call `d_Compere` explicitly, and the geometry volumes were derived against it. Active and legacy sets are labelled ACTIVE / REFERENCE ONLY so they cannot be mixed. |
+| 14 | Geometry volumes and pump parameters left unchanged, so the reported transit times move by the density ratio | Same policy as Phase 2 option B: the inconsistency stays computable rather than being absorbed by re-fitting volumes around a new density. Mixing a property change with a geometry change makes the regression unreadable. |
+| 15 | `T_melt = 722.15 K` recorded as a constant in `MSRE_Properties`, not added to the medium | The TRANSFORM `PartialLinearFluid` interface has no melting-temperature parameter and no model here needs one. Not worth a structural change to the medium interface. |
+
+### Numbers established
+
+| Property | Legacy | Cantor (active) | Δ @ 922 K |
+|---|---|---|---|
+| ρ | 2575 − 0.513·T[°C] | **2553.3 − 0.562·T[°C]** | 2242.14 → **2188.65** kg/m³ (−2.39 %) |
+| μ | 8.94e-5·exp(4092/T) | **8.4e-5·exp(4340/T)** | 7.565e-3 → **9.302e-3** Pa·s (+23.0 %) |
+| cₚ | 1967 | **2009.66** J/(kg·K) | +2.17 % |
+| k | 1.44 | **1.0** W/(m·K) | −30.6 % |
+| T_melt | not represented | **722.15 K** | — |
+
+Over the operating range (core inlet 908 K, average 922 K, outlet 936 K):
+
+| T | ρ [kg/m³] | μ [Pa·s] | cₚ [J/(kg·K)] | k [W/(m·K)] |
+|---|---|---|---|---|
+| 908 K | 2196.51 | 1.0002e-2 | 2009.66 | 1.0 |
+| 922 K | 2188.65 | 9.3019e-3 | 2009.66 | 1.0 |
+| 936 K | 2180.78 | 8.6695e-3 | 2009.66 | 1.0 |
+
+All four are strictly positive at all three temperatures.
+
+`beta_const` moved 2.2880e-4 → **2.5678e-4 1/K**. It is not an independent datum: it is
+`0.562/2188.65`, the isobaric expansion coefficient of the new density fit at the reference
+temperature, and it moves whenever the fit moves.
+
+### Retained assumptions
+
+No new source was established for these, so they keep their existing values —
+*retained existing model assumption, not modified in this property update*:
+
+- `FuelSalt.kappa_const = 2.89e-10 1/Pa` (from the TRANSFORM FLiBe model; only sets the stiff
+  acoustic time scale, the primary system is essentially incompressible here)
+- `FuelSalt.MM_const = 0.0331 kg/mol`
+- `FuelSalt.reference_p = 1e5 Pa`, `reference_s = 0`, and the `reference_h` convention
+  `cp·(T_ref − 273.15)`
+- `Data.Geometry.d_fuel_ref = 2249.3 kg/m³` and `PartialFuelPump.d_nominal = 2242 kg/m³` —
+  ORNL-TM-4865 numbers on the geometry/pump side, out of scope for a property-only change
+
+### Consequential changes, and what was left alone
+
+`PrimarySystem.density_ref` is evaluated from the medium, so it — and with it `tau_core`,
+`tau_loop`, `tau_system` — falls by 2.39 %. That is the intended visible consequence.
+Nothing else was edited: `Data/Geometry.mo`, `PartialFuelPump.mo`, `FuelPump.mo`,
+`FuelPump_Dynamics.mo`, the kinetics and the transient test parameters are untouched, and the
+two verification models that quote a density call `MSRE_Properties.d_Compere` explicitly rather
+than the medium, so their numbers and asserts are unchanged by this commit. They now describe
+the *geometry's* reference density rather than the medium's, which is a real divergence and is
+recorded as the open item below.
+
+### Open items
+
+- **O-9.** The geometry volumes were derived against the Compere density (Phase 2/2b) and the
+  medium now runs on Cantor. `Verification/Properties_TransitTime.mo` and
+  `Verification/Analytic_DriftReactivity.mo` still evaluate `d_Compere`. Either the volumes are
+  re-derived at the Cantor density or those two models are restated against it — a geometry
+  decision, deliberately not taken inside a property-only change.
+- **O-10.** The `CoreChannel` documentation quotes the legacy viscosity slope
+  (−4092/T² = −0.481 %/K). The Cantor fit gives −4340/T² = −0.511 %/K, so the argument holds in
+  substance but the quoted number is now the legacy one.
+- **O-11.** The thermal conductivity fell 30 % and the viscosity rose 23 %. Neither reaches the
+  zero-power pump tests (100 W), but both act directly on any full-power heat-transfer result.
+
+### Verification status
+
+`BLOCKED_NOT_RUN` — no Modelica toolchain (`omc`, Dymola) and no MSL/TRANSFORM installation is
+present in this environment, so `checkModel` and the property verification model were not run.
+The correlations were verified numerically outside Modelica against the values in the table
+above; the edited files were checked for Modelica string/comment balance.
