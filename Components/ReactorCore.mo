@@ -285,6 +285,15 @@ there. The core cells are ordered as</p>
 <li>cell <code>nRings*nAxial+1</code>, the last lower plenum node;</li>
 <li>cell <code>nRings*nAxial+2</code>, the first upper plenum node.</li>
 </ol>
+<p>This ordering is the paper's control-volume definition and is kept as such. The
+<i>volumes</i> of the two boundary nodes are a different matter: the paper does not publish
+them, and the values this library carries are legacy figures left over from an earlier
+inventory balance rather than measurements of 120-03 and 190-01. The paper does state that
+190-01 is 0.0635 m long in the base case, against the 0.0118 m that follows from the volume
+used here. See <a href=\"modelica://MSRE.Data.Geometry\">Data.Geometry</a>, where the
+provenance of each is classified and the benchmark-equivalent figures are reported without
+being connected to anything.</p>
+
 <p>The core-boundary sensitivity of the paper, which lengthens Volume 190-01 and shortens the
 rest of the upper plenum, is reproduced here by increasing
 <code>V_upperPlenum</code> while reducing an equal loop volume, so that the core

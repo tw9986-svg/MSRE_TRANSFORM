@@ -16,8 +16,12 @@ record Geometry "MSRE nodalization and geometry (Modelica counterpart of the MAR
   parameter Integer nPumpToHX=4 "# of nodes in the pump discharge pipe";
   parameter Integer nHXToVessel=6 "# of nodes in the heat exchanger outlet pipe";
 
-  /* Core boundary: following the paper, the last lower-plenum node and the first
-     upper-plenum node are counted as part of the reactor core. */
+  /* Core boundary, from Jeong et al., Nuclear Engineering and Technology 58 (2026) 104438:
+     the reactor core is MARS Volume 120-03 (the last lower-plenum node), the 15 x 20 channel
+     cells, and MARS Volume 190-01 (the first upper-plenum node). This is a control-volume
+     DEFINITION and it is confirmed by the paper, so it is kept exactly. The VOLUMES of the two
+     boundary nodes are a separate question and are not confirmed by anything - see
+     V_lowerPlenum_core and V_upperPlenum_core below, and the JeongEq diagnostics. */
   final parameter Integer iLP_core=nLP "Lower plenum node that belongs to the reactor core";
   final parameter Integer iUP_core=1 "Upper plenum node that belongs to the reactor core";
   final parameter Integer nV_core=nRings*nAxial + 2 "Total # of core cells seen by the kinetics";
@@ -41,38 +45,39 @@ record Geometry "MSRE nodalization and geometry (Modelica counterpart of the MAR
      hydraulic diameter and no volume in this block is entered by hand or fitted to a reported
      transit time or inventory. See the record documentation for the provenance and for the
      Mao geometry this replaced. */
-  parameter Real nChannels_total=1140 "Total # of vertical fuel channels";
+  parameter Real nChannels_total=1140
+    "PHYSICAL | ORNL/INL hardware, and confirmed by Jeong et al. (2026): total # of vertical fuel channels";
   parameter Real nChannels[nRings]=fill(nChannels_total/nRings, nRings)
     "# of channels per radial ring (equal-area rings)";
   parameter SI.Length H_channels=1.6256
-    "Active height of the fuel channels (64 in, ORNL/INL MSRE hardware)";
+    "PHYSICAL | ORNL/INL hardware: active height of the fuel channels (64 in)";
   parameter SI.Length w_channel=0.03048
-    "Width of a single fuel channel (1.2 in, ORNL/INL MSRE hardware)";
+    "PHYSICAL | ORNL/INL hardware: width of a single fuel channel (1.2 in)";
   parameter SI.Length h_channel=0.01016
-    "Depth of a single fuel channel (0.4 in, ORNL/INL MSRE hardware)";
+    "PHYSICAL | ORNL/INL hardware: depth of a single fuel channel (0.4 in)";
   parameter SI.Length r_channelCorner=0.00508
-    "Rounded corner radius of a single fuel channel (0.2 in, ORNL/INL MSRE hardware)";
+    "PHYSICAL | ORNL/INL hardware: rounded corner radius of a single fuel channel (0.2 in)";
 
   /* A fuel channel is a 1.2 x 0.4 in rectangle with all four corners rounded at 0.2 in. Each
      rounded corner removes (1 - pi/4)*r^2 of area and replaces 2r of straight wall with a
      quarter arc of length pi*r/2. */
   final parameter SI.Area A_channel=w_channel*h_channel - (4 - pi)*r_channelCorner^2
-    "Flow area of a single fuel channel (2.87524e-4 m2)";
+    "DERIVED | from the channel cross-section: flow area of a single fuel channel (2.87524e-4 m2)";
   final parameter SI.Length perimeter_channel=2*(w_channel + h_channel) - 4*(2 - pi/2)*
-      r_channelCorner "Wetted perimeter of a single fuel channel (0.072559 m)";
+      r_channelCorner "DERIVED | from the channel cross-section: wetted perimeter of a single fuel channel (0.072559 m)";
   final parameter SI.Length Dh_channel=4*A_channel/perimeter_channel
-    "Hydraulic diameter of a single fuel channel (0.015851 m)";
+    "DERIVED | 4*A/P: hydraulic diameter of a single fuel channel (0.015851 m)";
   final parameter SI.Area A_core_total=nChannels_total*A_channel
-    "Total core flow area (0.327778 m2)";
+    "DERIVED | nChannels_total*A_channel: total core flow area (0.327778 m2)";
   final parameter SI.Volume V_channels=A_core_total*H_channels
-    "Total fuel salt volume inside the graphite channels (0.532836 m3)";
+    "DERIVED | A_core_total*H_channels: total fuel salt volume inside the graphite channels (0.532836 m3)";
 
   /* Graphite: each channel is represented by an equivalent annulus of graphite. Its inner
      radius reproduces the wetted perimeter of the real (grooved) channel and its outer radius
      reproduces the per-channel share of the graphite stack, so that both the convective area
      and the graphite heat capacity are preserved. */
   parameter SI.Length D_graphiteStack=1.40335
-    "Diameter of the graphite stack (55.25 in, ORNL/INL MSRE hardware)";
+    "PHYSICAL | ORNL/INL hardware: diameter of the graphite stack (55.25 in)";
   final parameter SI.Area A_graphite_perChannel=(pi/4*D_graphiteStack^2 - A_core_total)/
       nChannels_total
     "Graphite cross-section per fuel channel: the stack area not taken by the channels, shared out";
@@ -111,63 +116,114 @@ record Geometry "MSRE nodalization and geometry (Modelica counterpart of the MAR
   /* Vessel and core container hardware. The downcomer is the annulus between them, so its flow
      area and hydraulic diameter follow from these four dimensions and are not entered. */
   parameter SI.Length D_vessel_inner=1.4732
-    "Reactor vessel inner diameter (58 in, ORNL/INL MSRE hardware)";
+    "PHYSICAL | ORNL/INL hardware: reactor vessel inner diameter (58 in)";
   parameter SI.Length th_vessel=0.0254
-    "Reactor vessel wall thickness (1 in, ORNL/INL MSRE hardware)";
+    "PHYSICAL | ORNL/INL hardware: reactor vessel wall thickness (1 in)";
   parameter SI.Length D_coreContainer_inner=1.4097
-    "Core container inner diameter (55.5 in, ORNL/INL MSRE hardware)";
+    "PHYSICAL | ORNL/INL hardware: core container inner diameter (55.5 in)";
   parameter SI.Length th_coreContainer=0.00635
-    "Core container wall thickness (0.25 in, ORNL/INL MSRE hardware)";
+    "PHYSICAL | ORNL/INL hardware: core container wall thickness (0.25 in)";
   final parameter SI.Length D_coreContainer_outer=D_coreContainer_inner + 2*th_coreContainer
-    "Core container outer diameter (56 in)";
+    "DERIVED | core container outer diameter (56 in)";
 
-  /* No published plenum volume was found. These two are unchanged estimates - see the record
-     documentation. */
-  parameter SI.Volume V_lowerPlenum=0.0777 "Fuel salt volume of the lower plenum (estimate, no published source)";
-  parameter SI.Length L_lowerPlenum=0.30 "Height of the lower plenum (estimate, no published source)";
-  parameter SI.Volume V_upperPlenum=0.0777 "Fuel salt volume of the upper plenum (estimate, no published source)";
-  parameter SI.Length L_upperPlenum=0.30 "Height of the upper plenum (estimate, no published source)";
+  /* Plenum totals. No published MSRE plenum volume was found, so these four are assumptions and
+     are not to be adjusted to close an inventory. Note that a plenum TOTAL volume and a Jeong
+     core-boundary NODE volume are different things: V_upperPlenum is the whole upper plenum,
+     while MARS Volume 190-01 is one node inside it. */
+  parameter SI.Volume V_lowerPlenum=0.0777
+    "ASSUMPTION | no published source: fuel salt volume of the whole lower plenum";
+  parameter SI.Length L_lowerPlenum=0.30
+    "ASSUMPTION | no published source: height of the lower plenum";
+  parameter SI.Volume V_upperPlenum=0.0777
+    "ASSUMPTION | no published source: fuel salt volume of the whole upper plenum";
+  parameter SI.Length L_upperPlenum=0.30
+    "ASSUMPTION | no published source: height of the upper plenum";
 
-  /* The plenum node the kinetics counts as part of the reactor core (120-03 and 190-01 of the
-     MARS input) is a thin slice at the core boundary, not a third of the plenum. The 3.055 litre
-     value was originally the remainder of the reported 1606 kg core inventory once the old
-     channel volume was taken out. That derivation is void now that the channel volume comes from
-     hardware and no longer reproduces 1606 kg, and it was not re-derived: re-deriving it would
-     fit the geometry to the reported inventory, which is exactly what this record no longer
-     does. It is kept at its previous value as an unsourced small node. */
+  /* Core boundary nodes: MARS Volume 120-03 (lower) and 190-01 (upper) of Jeong et al. (2026).
+     The control-volume DEFINITION is confirmed by the paper and is kept - each is one node, each
+     is counted as part of the reactor core, and together with the 15 x 20 channel cells they are
+     the nV_core cells the kinetics sees.
+
+     Their VOLUMES are not confirmed by anything. The 3.055 litre figure was obtained by taking
+     the reported 1606 kg core inventory, dividing by the old density and subtracting the old
+     channel volume, then halving the remainder. Every input to that derivation has since been
+     replaced, so the number is a benchmark-derived legacy value, not a physical volume of
+     120-03 or 190-01. It is retained only because no independently sourced value exists and
+     because replacing it with a fitted one is exactly what this record no longer does.
+
+     LEGACY / BENCHMARK-DERIVED, kept active for want of anything better:
+       Legacy value derived from the former paper-inventory balance.
+       Not an independently sourced physical volume of MARS Volume 120-03 or 190-01.
+       Not active geometry provenance.
+
+     The physical volumes remain OPEN. See the JeongEq diagnostics below for what the paper's
+     own sensitivity study implies about 190-01, and note that it is 21.5 times this value. */
   parameter SI.Volume V_lowerPlenum_core=0.003055
-    "Fuel salt volume of the lower plenum node that belongs to the reactor core (unsourced, retained)";
+    "LEGACY/OPEN | benchmark-derived, not physical: fuel salt volume of MARS Volume 120-03, the lower plenum node inside the reactor core";
   parameter SI.Volume V_upperPlenum_core=0.003055
-    "Fuel salt volume of the upper plenum node that belongs to the reactor core (unsourced, retained)";
+    "LEGACY/OPEN | benchmark-derived, not physical: fuel salt volume of MARS Volume 190-01, the upper plenum node inside the reactor core";
 
-  /* The plena are given a uniform bore and non-uniform node lengths, so the core node's length
-     is its share of the volume. See the open item in the documentation: the paper's own
-     sensitivity study implies a longer node than this, and the two have not been reconciled. */
+  /* The plena are given a uniform bore and non-uniform node lengths, so each core node's length
+     is its share of the plenum volume. Both inherit the LEGACY/OPEN status of the volumes they
+     come from. L_upperPlenum_core lands at 11.8 mm against the 63.5 mm the paper states for
+     190-01, which is the clearest single sign that the 3.055 litre volume is not the paper's. */
   final parameter SI.Length L_lowerPlenum_core=V_lowerPlenum_core*L_lowerPlenum/V_lowerPlenum
-    "Axial length of the lower plenum node that belongs to the reactor core";
+    "DERIVED from LEGACY/OPEN | axial length of MARS Volume 120-03 as modelled here (0.0118 m)";
   final parameter SI.Length L_upperPlenum_core=V_upperPlenum_core*L_upperPlenum/V_upperPlenum
-    "Axial length of the upper plenum node that belongs to the reactor core";
+    "DERIVED from LEGACY/OPEN | axial length of MARS Volume 190-01 as modelled here (0.0118 m, paper states 0.0635 m)";
+
+  /* ------------------------------------------------------------------
+     Jeong core boundary: reference values and benchmark-equivalent diagnostics
+
+     REFERENCE values are quoted directly from Jeong et al. (2026). JEONG-EQUIVALENT values are
+     what the paper's reported sensitivity implies about the MARS nodalization; they are
+     BENCHMARK-EQUIVALENT, NOT PHYSICAL, and nothing in this record is allowed to depend on
+     them. They exist so that the gap between the benchmark and the hardware is a computed
+     number rather than an argument.
+     ------------------------------------------------------------------ */
+  final parameter SI.Length L_190_01_Jeong=0.0635
+    "REFERENCE | Jeong et al. (2026): baseline axial length of MARS Volume 190-01";
+  final parameter SI.Length dL_190_01_Jeong=0.0800
+    "REFERENCE | Jeong et al. (2026): axial length added to 190-01 in the core-boundary sensitivity case (0.0635 -> 0.1435 m)";
+  final parameter SI.Time dtau_core_Jeong=1.11
+    "REFERENCE | Jeong et al. (2026): core transit time increase reported for that case (the loop time falls by the same amount)";
+
+  final parameter SI.VolumeFlowRate V_flow_ref=m_flow_nominal/d_fuel_ref
+    "DERIVED | rated volumetric flow at the reporting reference density (numerically the same as V_flow_pump_nominal below)";
+  final parameter SI.Area A_190_01_JeongEq=V_flow_ref*dtau_core_Jeong/dL_190_01_Jeong
+    "BENCHMARK-EQUIVALENT, NOT PHYSICAL | flow area 190-01 must have in MARS for the reported sensitivity to hold (1.0363 m2)";
+  final parameter SI.Volume V_190_01_JeongEq=A_190_01_JeongEq*L_190_01_Jeong
+    "BENCHMARK-EQUIVALENT, NOT PHYSICAL | volume of MARS Volume 190-01 implied by the sensitivity (0.065806 m3, 21.5x the legacy value)";
+
+  final parameter SI.Volume V_core_JeongEq=tau_core_paper*m_flow_nominal/d_fuel_ref
+    "BENCHMARK-EQUIVALENT, NOT PHYSICAL | core volume the reported core transit time implies at the reporting density (0.714035 m3)";
+  final parameter SI.Volume V_120_03_JeongEq=V_core_JeongEq - V_channels - V_190_01_JeongEq
+    "BENCHMARK-EQUIVALENT, NOT PHYSICAL | residual left for MARS Volume 120-03; it exceeds this record's whole lower plenum, which is the point of reporting it (0.115393 m3)";
 
   final parameter SI.Area A_downcomer=pi/4*(D_vessel_inner^2 - D_coreContainer_outer^2)
-    "Flow area of the downcomer annulus (0.115529 m2)";
+    "DERIVED | ORNL/INL hardware: flow area of the downcomer annulus (0.115529 m2)";
   final parameter SI.Length Dh_downcomer=D_vessel_inner - D_coreContainer_outer
-    "Hydraulic diameter of the downcomer annulus, twice the annular gap (0.0508 m)";
+    "DERIVED | ORNL/INL hardware: hydraulic diameter of the downcomer annulus, twice the annular gap (0.0508 m)";
   parameter SI.Length L_downcomer=2.40
-    "Flow length of the downcomer (estimate, no published source; the one free input left on the loop side)";
+    "ASSUMPTION | no published source: flow length of the downcomer. Never adjust it to reproduce a transit time";
   final parameter SI.Volume V_downcomer=A_downcomer*L_downcomer
-    "Fuel salt volume of the downcomer annulus (0.277270 m3)";
+    "DERIVED | hardware area times an assumed length: fuel salt volume of the downcomer annulus (0.277270 m3)";
 
   /* ------------------------------------------------------------------
      External loop piping and pump
      ------------------------------------------------------------------ */
   parameter SI.Length D_pipe=0.127
-    "Inner diameter of the main connecting piping (5 in, ORNL/INL MSRE hardware)";
-  parameter SI.Length L_outletPipe=4.00 "Reactor outlet pipe length (vessel to pump)";
-  parameter SI.Length L_pumpToHX=5.00 "Pump discharge pipe length (pump to heat exchanger)";
-  parameter SI.Length L_hxToVessel=7.00 "Heat exchanger outlet pipe length (to the vessel inlet)";
+    "REFERENCE | INL MSRE description: inner diameter of the main connecting piping (5 in)";
+  parameter SI.Length L_outletPipe=4.00
+    "ASSUMPTION | no published source confirmed: reactor outlet pipe length (vessel to pump)";
+  parameter SI.Length L_pumpToHX=5.00
+    "ASSUMPTION | no published source confirmed: pump discharge pipe length (pump to heat exchanger)";
+  parameter SI.Length L_hxToVessel=7.00
+    "ASSUMPTION | no published source confirmed: heat exchanger outlet pipe length (to the vessel inlet)";
   parameter SI.Volume V_pumpBowl=0.150
-    "Fuel salt volume of the pump bowl and volute (estimate, no published source)";
-  parameter SI.Length L_pumpBowl=0.60 "Effective flow length of the pump bowl";
+    "ASSUMPTION | no published source: fuel salt volume of the pump bowl and volute. Never enlarge it to close the loop inventory";
+  parameter SI.Length L_pumpBowl=0.60
+    "ASSUMPTION | no published source: effective flow length of the pump bowl";
 
   parameter SI.PressureDifference dp_pump_nominal=3.0e5
     "Fuel pump pressure rise at rated speed and rated flow (48.5 ft of salt)";
@@ -206,7 +262,8 @@ record Geometry "MSRE nodalization and geometry (Modelica counterpart of the MAR
   parameter SI.Length D_tube_inner=0.010566 "Tube inner diameter (0.5 in OD, 0.042 in wall)";
   parameter SI.Length th_tube=0.001067 "Tube wall thickness";
   parameter SI.Length L_shell=2.44 "Shell length (8 ft)";
-  parameter SI.Volume V_hxShell=0.266 "Fuel salt volume on the shell side";
+  parameter SI.Volume V_hxShell=0.266
+    "ASSUMPTION | no published source; frozen with the rest of the heat exchanger, see open item O-16";
   final parameter SI.Area A_shell=V_hxShell/L_shell "Shell side flow area";
   parameter SI.Length Dh_shell=0.05606 "Shell side hydraulic diameter";
   final parameter SI.Length D_tube_outer=D_tube_inner + 2*th_tube "Tube outer diameter";
@@ -235,8 +292,11 @@ record Geometry "MSRE nodalization and geometry (Modelica counterpart of the MAR
   /* ------------------------------------------------------------------
      Derived inventories and transit times (reported quantities)
      ------------------------------------------------------------------ */
+  /* PARTIAL_GEOMETRY_BASELINE. The channel term is hardware; the two boundary-node terms are
+     the LEGACY/OPEN values above. V_core is therefore only as good as they are, and it is not
+     adjusted to reproduce tau_core_paper. */
   final parameter SI.Volume V_core=V_channels + V_lowerPlenum_core + V_upperPlenum_core
-    "Fuel salt volume of the reactor core as defined in the paper";
+    "PARTIAL_GEOMETRY_BASELINE | fuel salt volume of the reactor core as Jeong et al. define it: channels + MARS 120-03 + MARS 190-01 (0.538946 m3)";
   final parameter SI.Volume V_loop=(V_lowerPlenum - V_lowerPlenum_core) + (V_upperPlenum -
       V_upperPlenum_core) + pi/4*D_pipe^2*(L_outletPipe + L_pumpToHX + L_hxToVessel) +
       V_pumpBowl + V_hxShell + V_downcomer "Fuel salt volume of the external loop";
@@ -313,6 +373,93 @@ record Geometry "MSRE nodalization and geometry (Modelica counterpart of the MAR
     "Sum of all elevation rises around the loop, which must be zero";
 
   annotation (defaultComponentName="geometry", Documentation(info="<html>
+<h4>Provenance classification</h4>
+<p>Every geometric input carries one of six tags, repeated in its own description string so
+that it travels with the parameter:</p>
+<table border=\"1\">
+<tr><th>Tag</th><th>Meaning</th></tr>
+<tr><td><b>PHYSICAL</b></td><td>a published ORNL/INL hardware dimension</td></tr>
+<tr><td><b>DERIVED</b></td><td>computed from PHYSICAL inputs, no freedom of its own</td></tr>
+<tr><td><b>REFERENCE</b></td><td>quoted from a publication, used as a comparison and not as an input</td></tr>
+<tr><td><b>ASSUMPTION</b></td><td>no published source found; the value is an estimate and is <i>never</i> to be tuned to close an inventory or a transit time</td></tr>
+<tr><td><b>LEGACY</b></td><td>a value produced by an earlier fit, kept for comparison</td></tr>
+<tr><td><b>BENCHMARK-EQUIVALENT</b></td><td>what a reported benchmark result implies about the MARS nodalization; <i>not physical</i>, and nothing active depends on it</td></tr>
+</table>
+
+<table border=\"1\">
+<tr><th>Parameter</th><th>Value</th><th>Class</th><th>Provenance</th></tr>
+<tr><td><code>nChannels_total</code>, <code>H_channels</code>, <code>w_channel</code>,
+        <code>h_channel</code>, <code>r_channelCorner</code></td>
+    <td>1140, 1.6256 m, 30.48/10.16/5.08 mm</td><td>PHYSICAL</td><td>ORNL/INL hardware</td></tr>
+<tr><td><code>A_channel</code>, <code>perimeter_channel</code>, <code>Dh_channel</code>,
+        <code>A_core_total</code>, <code>V_channels</code></td>
+    <td>2.87524e-4 m2, 0.072559 m, 0.015851 m, 0.327778 m2, 0.532836 m3</td>
+    <td>DERIVED</td><td>the five above</td></tr>
+<tr><td><code>D_graphiteStack</code></td><td>1.40335 m</td><td>PHYSICAL</td><td>ORNL/INL hardware</td></tr>
+<tr><td><code>V_lowerPlenum_core</code> (MARS 120-03)</td><td>0.003055 m3</td>
+    <td><b>LEGACY / OPEN</b></td><td>former paper-inventory balance; physical volume unresolved</td></tr>
+<tr><td><code>V_upperPlenum_core</code> (MARS 190-01)</td><td>0.003055 m3</td>
+    <td><b>LEGACY / OPEN</b></td><td>as above</td></tr>
+<tr><td><code>L_190_01_Jeong</code></td><td>0.0635 m</td><td>REFERENCE</td><td>Jeong et al. (2026)</td></tr>
+<tr><td><code>dL_190_01_Jeong</code>, <code>dtau_core_Jeong</code></td><td>0.0800 m, 1.11 s</td>
+    <td>REFERENCE</td><td>Jeong et al. (2026) core-boundary sensitivity</td></tr>
+<tr><td><code>A_190_01_JeongEq</code></td><td>1.0363 m2</td>
+    <td>BENCHMARK-EQUIVALENT</td><td>the two above</td></tr>
+<tr><td><code>V_190_01_JeongEq</code></td><td>0.065806 m3</td>
+    <td>BENCHMARK-EQUIVALENT</td><td>as above</td></tr>
+<tr><td><code>V_core_JeongEq</code>, <code>V_120_03_JeongEq</code></td><td>0.714035, 0.115393 m3</td>
+    <td>BENCHMARK-EQUIVALENT</td><td>reported tau_C, as a residual</td></tr>
+<tr><td><code>V_lowerPlenum</code>, <code>V_upperPlenum</code></td><td>0.0777 m3 each</td>
+    <td>ASSUMPTION</td><td>no published source</td></tr>
+<tr><td><code>L_lowerPlenum</code>, <code>L_upperPlenum</code></td><td>0.30 m each</td>
+    <td>ASSUMPTION</td><td>no published source</td></tr>
+<tr><td><code>D_vessel_inner</code>, <code>th_vessel</code>,
+        <code>D_coreContainer_inner</code>, <code>th_coreContainer</code></td>
+    <td>1.4732, 0.0254, 1.4097, 0.00635 m</td><td>PHYSICAL</td><td>ORNL/INL hardware</td></tr>
+<tr><td><code>A_downcomer</code>, <code>Dh_downcomer</code></td><td>0.115529 m2, 0.0508 m</td>
+    <td>DERIVED</td><td>the vessel/container annulus</td></tr>
+<tr><td><code>L_downcomer</code></td><td>2.40 m</td><td>ASSUMPTION</td><td>no published source</td></tr>
+<tr><td><code>V_downcomer</code></td><td>0.277270 m3</td><td>DERIVED</td>
+    <td>hardware area x assumed length</td></tr>
+<tr><td><code>D_pipe</code></td><td>0.127 m</td><td>REFERENCE</td><td>INL MSRE description, 5 in</td></tr>
+<tr><td><code>L_outletPipe</code>, <code>L_pumpToHX</code>, <code>L_hxToVessel</code></td>
+    <td>4.00, 5.00, 7.00 m</td><td>ASSUMPTION</td><td>no published source confirmed</td></tr>
+<tr><td><code>V_pumpBowl</code>, <code>L_pumpBowl</code></td><td>0.150 m3, 0.60 m</td>
+    <td>ASSUMPTION</td><td>no published source</td></tr>
+<tr><td><code>V_hxShell</code></td><td>0.266 m3</td><td>ASSUMPTION</td>
+    <td>no published source; frozen with the rest of the heat exchanger (O-16)</td></tr>
+<tr><td><code>V_downcomer_fitted</code>, <code>Dh_downcomer_fitted</code>,
+        <code>D_pipe_sch40</code>, the <code>*_Mao</code> set</td><td>-</td>
+    <td>LEGACY</td><td>retired fits, inert</td></tr>
+</table>
+
+<h4>The Jeong core boundary, and what its own sensitivity implies</h4>
+<p>Jeong et al. (2026) define the reactor core as MARS Volume 120-03, the 15 x 20 channel
+cells, and MARS Volume 190-01. That <i>definition</i> is confirmed and is what this record
+implements: <code>iLP_core = nLP</code>, <code>iUP_core = 1</code>,
+<code>nV_core = nRings*nAxial + 2</code>. The <i>volumes</i> of those two nodes are not
+published, and the 3.055 litre value this record carries is not a measurement of them - it is
+what was left of the reported 1606 kg core inventory after the old density and the old channel
+volume were taken out, halved. Every input to that derivation has since been replaced.</p>
+
+<p>The paper does report one thing that constrains 190-01. Lengthening it by 0.0800 m moves
+<code>tau_core</code> by +1.11 s and <code>tau_loop</code> by -1.11 s, and a transit time is a
+volume divided by a volumetric flow, so the node's flow area follows:</p>
+<p><code>A = V_flow*dtau/dL = 0.074690*1.11/0.0800 = 1.0363 m2</code></p>
+<p>which over the stated 0.0635 m baseline length is <b>0.065806 m3</b> - twenty-one and a half
+times the 3.055 litres this record uses, and 85 % of the entire upper plenum it assumes. The
+same arithmetic applied to the reported core transit time leaves <b>0.115393 m3</b> for
+120-03, which is 148 % of this record's whole lower plenum.</p>
+
+<p>Two readings survive that, and the available data does not choose between them: either the
+MARS plena are much larger than the 0.0777 m3 assumed here, or MARS counts as core-boundary
+nodes a region this record counts as plenum and downcomer. Both would also explain a good part
+of the 17.5 % circulating-inventory shortfall. What is <i>not</i> a legitimate response is
+setting <code>V_upperPlenum_core := V_190_01_JeongEq</code>: that number is
+BENCHMARK-EQUIVALENT, it is derived from a MARS result rather than from hardware, and adopting
+it would put the transit-time fitting straight back in. It is reported and left disconnected on
+purpose.</p>
+
 <h4>Where the numbers come from</h4>
 <p>Documented MSRE hardware dimensions are used wherever they are available:
 1140 fuel channels of 1.2 x 0.4 in with 0.2 in rounded corners, 1.6256 m active height,

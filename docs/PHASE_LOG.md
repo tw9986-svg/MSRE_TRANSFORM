@@ -586,3 +586,136 @@ explain, and it is the deliverable of Phases 4–5.
 `BLOCKED_NOT_RUN` — no Modelica toolchain in this environment. All values computed by hand
 outside Modelica from the expressions now in the record; `Data/Geometry.mo` checked for
 Modelica string and comment balance.
+
+---
+
+## Phase 6 — Geometry provenance cleanup (O-12 + O-17)
+
+**Scope:** provenance classification and documentation only. No active geometry *value* was
+changed in this commit; the only new numbers are reference and diagnostic quantities that
+nothing depends on.
+
+### O-12 — Jeong core boundary
+
+```
+Jeong core boundary confirmed:
+120-03 + 300 channel cells + 190-01.
+190-01 baseline axial length = 0.0635 m.
+Former 0.003055 m3 boundary-node volumes were inventory-derived legacy values
+and are no longer accepted as physical provenance.
+120-03 physical geometry remains unresolved.
+190-01 physical volume remains unresolved unless an independent area source is found.
+```
+
+The control-volume **definition** from Jeong et al., *Nuclear Engineering and Technology* 58
+(2026) 104438 is confirmed and kept unchanged: `iLP_core = nLP`, `iUP_core = 1`,
+`nV_core = nRings*nAxial + 2`, 15 rings × 20 axial nodes, 3 + 3 plenum nodes. No component
+architecture was touched.
+
+The boundary-node **volumes** are demoted. `V_lowerPlenum_core` and `V_upperPlenum_core` keep
+their 0.003055 m³ — no independently sourced replacement exists and inventing one is exactly
+what this work is removing — but they are now tagged **LEGACY / OPEN** in their own description
+strings and in the record documentation.
+
+**What the paper's own sensitivity implies.** Lengthening 190-01 by 0.0800 m is reported to
+move `tau_core` by +1.11 s and `tau_loop` by −1.11 s. A transit time is a volume over a
+volumetric flow, so:
+
+| Diagnostic | Value | Note |
+|---|---|---|
+| `V_flow_ref` | 0.074690 m³/s | 168 kg/s at `d_fuel_ref` |
+| `A_190_01_JeongEq` | **1.0363 m²** | 66 % of the core container bore (1.5608 m²) |
+| `V_190_01_JeongEq` | **0.065806 m³** | **21.5×** the legacy 0.003055 m³; **85 %** of the whole assumed upper plenum |
+| `V_core_JeongEq` | 0.714035 m³ | from the reported `tau_C`, not used as active |
+| `V_120_03_JeongEq` | **0.115393 m³** | **148 %** of the whole assumed lower plenum |
+
+`L_upperPlenum_core` as modelled is **0.0118 m** against the **0.0635 m** the paper states for
+190-01 — the clearest single sign that 0.003055 m³ is not the paper's node.
+
+Two readings survive and the data does not choose between them: either the MARS plena are much
+larger than the 0.0777 m³ assumed here, or MARS counts as core-boundary nodes a region this
+record counts as plenum and downcomer. Both would explain part of the 17.5 % inventory
+shortfall. Setting `V_upperPlenum_core := V_190_01_JeongEq` was **not** done: that figure is
+derived from a MARS result, not from hardware, and adopting it would reinstate transit-time
+fitting. It is reported and left disconnected on purpose.
+
+### O-17 — Loop parameter reclassification
+
+```
+Remaining loop-volume uncertainty is no longer absorbed into the downcomer.
+Unsourced component dimensions remain explicit assumptions.
+No component volume is adjusted to reproduce tau_C, tau_L or total inventory.
+```
+
+Six tags, carried in each parameter's own description string so they travel with the value:
+**PHYSICAL**, **DERIVED**, **REFERENCE**, **ASSUMPTION**, **LEGACY**, **BENCHMARK-EQUIVALENT**.
+
+| Parameter | Value | Class | Provenance |
+|---|---|---|---|
+| `V_lowerPlenum_core` (120-03) | 0.003055 m³ | **LEGACY / OPEN** | former paper-inventory balance |
+| `V_upperPlenum_core` (190-01) | 0.003055 m³ | **LEGACY / OPEN** | former paper-inventory balance |
+| `L_190_01_Jeong` | 0.0635 m | REFERENCE | Jeong 2026 |
+| `dL_190_01_Jeong`, `dtau_core_Jeong` | 0.0800 m, 1.11 s | REFERENCE | Jeong 2026 sensitivity |
+| `A_190_01_JeongEq`, `V_190_01_JeongEq` | 1.0363 m², 0.065806 m³ | BENCHMARK-EQUIVALENT | not physical |
+| `V_core_JeongEq`, `V_120_03_JeongEq` | 0.714035, 0.115393 m³ | BENCHMARK-EQUIVALENT | not physical |
+| `V_lowerPlenum`, `V_upperPlenum` | 0.0777 m³ each | ASSUMPTION | no published source |
+| `L_lowerPlenum`, `L_upperPlenum` | 0.30 m each | ASSUMPTION | no published source |
+| `D_vessel_inner`, `th_vessel`, `D_coreContainer_inner`, `th_coreContainer` | 1.4732, 0.0254, 1.4097, 0.00635 m | PHYSICAL | ORNL/INL hardware |
+| `A_downcomer` | 0.115529 m² | DERIVED | vessel/container annulus |
+| `Dh_downcomer` | 0.0508 m | DERIVED | vessel/container annulus |
+| `V_downcomer` | 0.277270 m³ | DERIVED | hardware area × assumed length |
+| `L_downcomer` | 2.40 m | ASSUMPTION | no published source |
+| `D_pipe` | 0.127 m | REFERENCE | INL MSRE description, 5 in |
+| `L_outletPipe`, `L_pumpToHX`, `L_hxToVessel` | 4.00, 5.00, 7.00 m | ASSUMPTION | none confirmed |
+| `V_pumpBowl`, `L_pumpBowl` | 0.150 m³, 0.60 m | ASSUMPTION | no published source |
+| `V_hxShell` | 0.266 m³ | ASSUMPTION | frozen with the HX, O-16 |
+| `V_downcomer_fitted`, `Dh_downcomer_fitted`, `D_pipe_sch40`, `*_Mao` | — | LEGACY | retired fits, inert |
+
+The core channel set (`nChannels_total`, `H_channels`, `w_channel`, `h_channel`,
+`r_channelCorner`, `D_graphiteStack`) is PHYSICAL and everything computed from it
+(`A_channel`, `perimeter_channel`, `Dh_channel`, `A_core_total`, `V_channels`) is DERIVED.
+
+`V_core` is tagged **PARTIAL_GEOMETRY_BASELINE**: its channel term is hardware, its two
+boundary-node terms are LEGACY/OPEN.
+
+### Inventory and transit times (unchanged by this commit)
+
+| | active | Jeong / MARS | experiment |
+|---|---|---|---|
+| `V_channels` | 0.532836 m³ | — | — |
+| `V_120_03_active` | 0.003055 m³ (LEGACY) | unresolved | — |
+| `V_190_01_active` | 0.003055 m³ (LEGACY) | unresolved | — |
+| `V_core_active` | 0.538946 m³ | — | — |
+| plena (outside core) | 0.074645 m³ × 2 | — | — |
+| `V_downcomer` | 0.277270 m³ | — | — |
+| `V_pipes` | 0.202683 m³ | — | — |
+| `V_pumpBowl` / `V_hxShell` | 0.150 / 0.266 m³ | — | — |
+| `V_loop` | 1.045243 m³ | — | — |
+| `tau_core` | 7.216 s | 9.56 s | — |
+| `tau_loop` | 13.994 s | 16.14 s | — |
+| `tau_total` | 21.210 s | 25.63 s | 25.2 s |
+
+Comparison only. No geometry was adjusted toward the right-hand columns.
+
+### Verification asserts
+
+`EXPECTED_MISMATCH_DURING_PARTIAL_GEOMETRY_BASELINE`. The failures listed in Phases 4 and 5
+stand unchanged and **no tolerance was widened**: `Steady_LoopBalance` (τ_system 21.21 s vs
+25.63 ± 0.15 s), `Properties_TransitTime` (implied density +34.0 % vs ±5 %),
+`Analytic_DriftReactivity` (1.49 / 10.12 pcm vs 0.9 ± 0.2 / 6.7 ± 0.5 pcm), and
+`Transient_DriftReactivity` (forced-circulation drift 269.9 pcm vs 228.4, `tol_rho_pcm = 8`).
+They are the intended output of a hardware baseline that is not fitted to the benchmark.
+
+### Open items
+
+- **O-12** narrowed, not closed: the boundary-node *definition* is settled; the *physical*
+  volumes of 120-03 and 190-01 remain OPEN pending an independent flow-area source.
+- **O-17** closed as a classification task: every loop parameter now carries a provenance tag.
+  The underlying uncertainty is unchanged and is now explicit rather than absorbed.
+- **O-13**, **O-14**, **O-15**, **O-16** unchanged.
+
+### Verification status
+
+`BLOCKED_NOT_RUN` — no Modelica toolchain in this environment. Diagnostics computed by hand
+outside Modelica from the same expressions now in the record; `Data/Geometry.mo` and
+`Components/ReactorCore.mo` checked for Modelica string and comment balance.
