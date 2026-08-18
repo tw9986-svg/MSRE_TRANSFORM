@@ -862,3 +862,107 @@ history is unchanged.
 was computed by hand outside Modelica from the expressions now in the record. These are hand
 calculations, not compile or simulation results. Edited files were checked for Modelica string
 and comment balance.
+
+---
+
+## Phase 8 — O-18: verification density baseline unification
+
+```
+O-18 RESOLUTION:
+Verification density references were aligned with the active Cantor
+fuel-salt property model.
+Properties_TransitTime now treats Cantor as ACTIVE and Compere/legacy
+as reference comparisons.
+Analytic_DriftReactivity uses Cantor for the active transit-time and
+drift-reactivity calculation.
+No geometry, pump, kinetics, experiment input, or assertion tolerance
+was modified.
+Any remaining benchmark mismatch is therefore no longer attributable
+to a Compere-vs-Cantor verification inconsistency.
+```
+
+### Which function, and why
+
+Two Cantor implementations exist: `Media.FuelSalt.Utilities.d_T` (the medium's own) and
+`Media.MSRE_Properties.d_Cantor` (a restatement for provenance documentation). Both verification
+models now call **`FuelSalt.Utilities.d_T`** — same source of truth as the active medium, and as
+`Data.Geometry.d_fuel_ref` since O-13. `MSRE_Properties.d_Cantor` duplicates the formula, so
+using it would have created a second path that could silently diverge.
+
+### Density dependency, checked against the code rather than assumed
+
+Both models compute `tau = rho*V/m_flow`. The benchmark states a **mass** flow rate (168 kg/s;
+1.46 and 4.45 kg/s for natural circulation), so a density is genuinely required and switching
+the baseline moves every transit time. Two quantities are density-*free* and did not move:
+`d_implied_repo = m_core/V_channels` (reported mass over hardware volume), and the forced-
+circulation drift reactivity and `Beta_circulating`, which use the paper's reported transit
+times directly.
+
+### Transit-time comparison (active geometry, 908 K)
+
+| Density | rho | tau_core | tau_loop | tau_total | drift |
+|---|---:|---:|---:|---:|---:|
+| **Cantor (ACTIVE)** | **2196.514** | **7.046 s** | **13.666 s** | **20.713 s** | **269.9 pcm** |
+| Compere (reference) | 2249.322 | 7.216 s | 13.995 s | 21.210 s | 267.2 pcm |
+| legacy (reference) | 2063.097 | 6.618 s | 12.836 s | 19.454 s | 277.0 pcm |
+| *Jeong (MARS)* | *not published* | *9.56 s* | *16.14 s* | *25.63 s* | *228.4 pcm* |
+
+### Drift comparison
+
+| Case | Cantor (ACTIVE) | Compere (reference) | Jeong target |
+|---|---:|---:|---:|
+| forced circulation (paper τ, density-free) | 228.35 pcm | 228.35 pcm | 228.4 pcm |
+| natural circulation, 1.46 kg/s | **1.562 pcm** | 1.492 pcm | 0.9 ± 0.2 pcm |
+| natural circulation, 4.45 kg/s | **10.493 pcm** | 10.123 pcm | 6.7 ± 0.5 pcm |
+
+### The point of the exercise
+
+**The benchmark mismatch was never a Compere-versus-Cantor question.** The two correlations
+differ by 2.4 %; the core transit time is out by 26 % and the natural-circulation drift by 74 %
+and 57 %. Both natural-circulation cases fail at *either* density. Unifying the baseline did not
+cause the failures and does not cure them — it removes an explanation that was never doing any
+work, so the residual is now unambiguously the `PARTIAL_GEOMETRY_BASELINE`.
+
+### Assertion status — no tolerance touched
+
+| Model | Assert | Before (Compere) | After (Cantor) |
+|---|---|---:|---:|
+| `Properties_TransitTime` | implied density, ±5 % | +34.0 % FAIL | **+37.2 % FAIL** |
+| `Properties_TransitTime` | active closer than legacy | 34.0 < 46.1 PASS | **37.2 < 46.1 PASS** |
+| `Analytic_DriftReactivity` | forced drift, 228.4 ± 0.5 pcm | 228.35 PASS | 228.35 PASS (density-free) |
+| `Analytic_DriftReactivity` | `Beta_circulating` 0.0045 ± 1e-4 | 0.004497 PASS | 0.004497 PASS (density-free) |
+| `Analytic_DriftReactivity` | nat. circ. 0.9 ± 0.2 / 6.7 ± 0.5 | 1.49 / 10.12 FAIL | **1.56 / 10.49 FAIL** |
+
+`EXPECTED_MISMATCH_DURING_PARTIAL_GEOMETRY_BASELINE`. No tolerance was widened, no assertion
+deleted or downgraded to a warning. O-14 remains the place where that is decided.
+
+### Repository-wide audit
+
+| Location | Match | Class | Action |
+|---|---|---|---|
+| `Verification/Properties_TransitTime.mo` | `d_Compere`, `d_legacy` | VERIFICATION | **fixed** — Cantor active, both retained as reference |
+| `Verification/Analytic_DriftReactivity.mo` | `d_Compere(922)` | VERIFICATION | **fixed** — Cantor active, Compere kept as diagnostic |
+| `Data/Geometry.mo:46` | `d_fuel_ref_legacy_Compere = 2249.3` | LEGACY REFERENCE | correct as is |
+| `Media/MSRE_Properties.mo` | `d_Compere`, `d_legacy` functions, `2575 − 0.513` | LEGACY REFERENCE | correct as is — this is the provenance package |
+| `Media/FuelSalt/Utilities/d_T.mo` | `2575 − 0.513`, `2242` in prose | DOCUMENTATION | out of scope, not modified |
+| `Data/Geometry.mo` prose | `2249.3` in four doc passages | DOCUMENTATION | historical narrative, correct as is |
+| `docs/PHASE_LOG.md` | many | DOCUMENTATION | historical record, appended only |
+| `Data/PrecursorGroups/U235_6group.mo:18` | `0.5134` | OTHER | false positive — a half-life |
+
+**No ACTIVE MODEL path outside the two verification files still reads a Compere or legacy
+density.** No out-of-scope file was modified.
+
+### Open items
+
+- **O-18 closed.**
+- **O-14** is now the sharpest one: three assertions fail and their tolerances are untouched by
+  policy. They need to be restated as reported diagnostics or given hardware-consistent targets.
+- **O-12** (120-03 / 190-01 physical volumes) is the root cause of all three failures.
+- **O-15**, **O-16**, **O-17** unchanged.
+
+### Verification status
+
+`BLOCKED_NOT_RUN` — no Modelica toolchain, no MSL/TRANSFORM installation. `checkModel` and both
+verification models were **not** run. Every number above is a hand calculation performed outside
+Modelica from the expressions now in the files; they are not compile or simulation results. Both
+edited `.mo` files were checked for Modelica string and comment balance.

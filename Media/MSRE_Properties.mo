@@ -197,8 +197,11 @@ medium density, move by the same 2.4 %. That is the intended behaviour of a prop
 change: the inconsistency stays computable rather than being hidden by re-fitting volumes.
 <a href=\"modelica://MSRE.Verification.Properties_TransitTime\">Properties_TransitTime</a> and
 <a href=\"modelica://MSRE.Verification.Analytic_DriftReactivity\">Analytic_DriftReactivity</a>
-still evaluate <code>d_Compere</code> explicitly and are therefore unaffected by this change;
-they now describe the geometry's own reference density rather than the medium's.</p>
+evaluated <code>d_Compere</code> explicitly at the time of that change and were unaffected by
+it. <b>That is no longer the case:</b> under open item O-18 both were moved onto
+<a href=\"modelica://MSRE.Media.FuelSalt.Utilities.d_T\">FuelSalt.Utilities.d_T</a>, so their
+active results now follow the medium. They still compute the Compere figures alongside, as
+reference comparisons that no assertion depends on.</p>
 
 <h4>Jeong et al. (2026) do not publish theirs</h4>
 <p>The reference paper states only that <q>molten salt thermophysical property models were
