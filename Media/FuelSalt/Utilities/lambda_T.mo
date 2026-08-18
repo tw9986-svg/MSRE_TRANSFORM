@@ -4,22 +4,19 @@ function lambda_T "Thermal conductivity of the MSRE fuel salt"
   input SI.Temperature T "Temperature";
   output SI.ThermalConductivity lambda "Thermal conductivity";
 algorithm
-  lambda := 1.44;
+  lambda := 1.0;
   annotation (Inline=true, Documentation(info="<html>
-<p>1.44 W/(m.K), which is 0.8320 Btu/(hr.ft.degF). The value 0.83 Btu/(hr.ft.degF) is often
-quoted for the MSRE fuel salt and converts to 1.4365 W/(m.K), 0.24 % below the constant coded
-here; the two are close but they are not the same number, so the imperial figure is a rounded
-restatement rather than the provenance of this constant.</p>
+<p>1.0 W/(m.K), constant, from S. Cantor, ORNL-TM-2316 (1968), as tabulated by INL for the MSRE
+fuel salt.</p>
 
-<p><b>Source level: source-unverified.</b> No primary document stating this value has been
-opened. Two independent modern points of comparison put the MSRE fuel-salt conductivity near
-1.0 W/(m.K) rather than 1.44: TRANSFORM's own MSRE fuel salt medium codes 1.0, and its
-coolant-salt medium codes 0.58 Btu/(hr.ft.degF) = 1.0038 W/(m.K). A 44 % spread between the
-MSRE-era value and the modern one is not a rounding difference and is not resolved here.</p>
+<p>This replaced 1.44 W/(m.K), which had no traceable source and was the outlier of every value
+available: Cantor gives 1.0, TRANSFORM's MSRE fuel salt medium codes 1.0, and modern fluoride-salt
+reviews sit near 1.0 as well. 1.44 was 44 % above all of them.</p>
 
-<p>It does not reach the zero-power pump tests, where the power is 100 W and heat transfer is
-negligible. It is first-order for the full-power and natural-circulation cases, so it must be
-traced before either is reported. See
-<a href=\"modelica://MSRE.Media.MSRE_Properties\">MSRE_Properties</a>.</p>
+<p>The conductivity acts only through the salt-side heat transfer coefficient. It does not reach
+the zero-power pump tests, where the ring-to-ring temperature spread is under a microkelvin, but
+it does reach the full-power steady state and the natural-circulation case, and the shell-side
+heat exchanger calibration (<code>f_shellHT</code>, <code>Nu_floor_shell</code>) was tuned with
+the old value and will need rechecking there.</p>
 </html>"));
 end lambda_T;

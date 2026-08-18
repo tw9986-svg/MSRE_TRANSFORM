@@ -4,30 +4,23 @@ function eta_T "Dynamic viscosity of the MSRE fuel salt"
   input SI.Temperature T "Temperature";
   output SI.DynamicViscosity eta "Dynamic viscosity";
 algorithm
-  eta := 8.94e-5*exp(4092/T);
+  eta := 8.4e-5*exp(4340/T);
   annotation (Inline=true, Documentation(info="<html>
-<p><code>eta [Pa.s] = 8.94e-5*exp(4092/T[K])</code>, i.e. 0.0894*exp(4092/T) in cP, giving
-7.565 cP at 922 K (1200 degF).</p>
+<p><code>mu [Pa.s] = 8.4e-5*exp(4340/T [K])</code>, from S. Cantor, ORNL-TM-2316 (1968), as
+tabulated by INL for the MSRE fuel salt. 9.30e-3 Pa.s at 922 K, 1.00e-2 Pa.s at 908 K.</p>
 
-<p><b>Source level: source-unverified &mdash; origin unidentified.</b> This is the weakest of
-the four. The prefactor and the activation constant could not be matched to any document or to
-any other MSRE model examined, and in particular it is <i>not</i> TRANSFORM's: TRANSFORM's MSRE
-fuel salt codes <code>0.116e-3*exp(3755/T)</code>, which is the generic FLiBe viscosity of
-<code>Utilities_FLiBe</code> verbatim and gives 6.81 cP at 922 K &mdash; 11 % below this one.
-Neither the composition nor the valid temperature range of the expression coded here has been
-established.</p>
+<p>This replaced <code>8.94e-5*exp(4092/T)</code>, which gave 7.57e-3 Pa.s at 922 K and whose
+origin this library had been unable to identify: it was neither TRANSFORM's expression nor one
+that could be traced to an ORNL document. The new correlation is 23 % higher at MSRE conditions.</p>
 
-<p>The two forms differ in shape as well as magnitude, since the activation constants differ
-(4092 against 3755), so they diverge away from 922 K: the gap widens to about 15 % at 800 K and
-narrows to about 8 % at 1000 K.</p>
+<p>The consequence is confined to the friction and heat transfer correlations. The channel
+Reynolds number at rated flow falls from about 855 to about 695, which is further into the laminar
+regime rather than across a transition, so the reasoning that the ring flow split responds
+linearly to the viscosity is unaffected. The core friction pressure drop is 0.08 % of the loop
+total, so the delivered flow rate barely moves.</p>
 
-<p><b>Why this matters more than its 100 W duty suggests.</b> The channel Reynolds number is
-about 855, so the fuel channels are laminar and their pressure drop is proportional to velocity
-rather than to its square. The viscosity is then the only mechanism in the model that
-redistributes flow between the fifteen rings without a fitted coefficient, at about
--0.5 %/K. An 11 % uncertainty in the viscosity is therefore not negligible for any ring-level
-flow claim, even though it is negligible for the loop total, where the core friction is only
-0.08 % of the loop pressure drop. See
-<a href=\"modelica://MSRE.Media.MSRE_Properties\">MSRE_Properties</a>.</p>
+<p>TRANSFORM's MSRE fuel salt medium carries <code>0.116e-3*exp(3755/T)</code>, 6.81e-3 Pa.s at
+922 K. That is the generic FLiBe viscosity reused verbatim for the fuel salt, not a
+fuel-salt-specific fit, which is why it is not adopted here.</p>
 </html>"));
 end eta_T;

@@ -49,27 +49,42 @@ return. This is the same body MSL gives
 <table border=\"1\">
 <tr><th>Property</th><th>Correlation</th><th>Value at 922 K</th></tr>
 <tr><td>density</td><td>2575 - 0.513*T [degC]</td><td>2242 kg/m3</td></tr>
-<tr><td>specific heat</td><td>1967 [J/(kg.K)] (constant)</td><td>1967 J/(kg.K)</td></tr>
-<tr><td>dynamic viscosity</td><td>8.94e-5*exp(4092/T) [Pa.s]</td><td>7.56e-3 Pa.s (7.6 cP)</td></tr>
-<tr><td>thermal conductivity</td><td>1.44 [W/(m.K)] (constant)</td><td>1.44 W/(m.K)</td></tr>
+<tr><td>specific heat</td><td>2009.66 [J/(kg.K)] (constant)</td><td>2009.66 J/(kg.K)</td></tr>
+<tr><td>dynamic viscosity</td><td>8.4e-5*exp(4340/T) [Pa.s]</td><td>9.30e-3 Pa.s (9.3 cP)</td></tr>
+<tr><td>thermal conductivity</td><td>1.0 [W/(m.K)] (constant)</td><td>1.0 W/(m.K)</td></tr>
 </table>
 <p>The isobaric expansion coefficient <code>beta_const</code> follows from the density fit,
 <code>0.513/2242 = 2.288e-4 1/K</code>. The isothermal compressibility
 <code>kappa_const</code> is taken from the TRANSFORM FLiBe model; the primary system is
 essentially incompressible at MSRE conditions so this value only sets the (stiff)
 acoustic time scale.</p>
-<p><b>None of the four has been traced to a primary source.</b> No document host was reachable
-from the environment in which this was last reviewed, so no page, table or equation reference
-can be given for any of them, and no valid temperature range has been established for any of
-them. What separates the density from the other three is <i>corroboration</i>, not tracing: the
-identical expression is carried by Mao et al. Eq. (10) and, character for character, by the MSRE
-fuel salt medium TRANSFORM itself ships. The other three are the values commonly used in the
-published MSRE benchmark models, carried over unchanged, and all three disagree with TRANSFORM's
-MSRE medium &mdash; by 17.6 % (cp), 11 % (mu) and 44 % (k). All four are collected in
-<a href=\"modelica://MSRE.Media.FuelSalt.Utilities\">Utilities</a> so that they can be replaced
-in one place, and their provenance, the reason TRANSFORM's medium is <i>not</i> adopted whole,
-and the unresolved report number are set out in
-<a href=\"modelica://MSRE.Media.MSRE_Properties\">MSRE_Properties</a>.</p>
+<p><b>Three of the four now carry a primary source and one does not.</b> The specific heat,
+viscosity and conductivity are from S. Cantor, ORNL-TM-2316 (1968), as tabulated by INL for the
+MSRE fuel salt, and they replaced values that had no traceable origin. What they replaced, and by
+how much:</p>
+<table border=\"1\">
+<tr><th>at 922 K</th><th>previously</th><th>now (Cantor)</th><th>change</th><th>TRANSFORM MSRE medium</th></tr>
+<tr><td>specific heat [J/(kg.K)]</td><td>1967</td><td>2009.66</td><td>+2.2 %</td><td>2386.5</td></tr>
+<tr><td>viscosity [Pa.s]</td><td>7.57e-3</td><td>9.30e-3</td><td>+23 %</td><td>6.81e-3</td></tr>
+<tr><td>conductivity [W/(m.K)]</td><td>1.44</td><td>1.0</td><td>-31 %</td><td>1.0</td></tr>
+</table>
+<p>The conductivity is the clearest gain: 1.44 was the outlier of every value available, while
+Cantor, TRANSFORM and the modern fluoride-salt reviews all sit at 1.0. The specific heat barely
+moves but is now sourced, and it settles the disagreement with TRANSFORM in this library's favour
+&mdash; TRANSFORM reuses the coolant salt's 2386.5 for the fuel salt, which physical reasoning
+already argued had to be too high.</p>
+
+<p>The <b>density is the one still without a primary source</b>, and it is the property the
+benchmark is most sensitive to. It has corroboration rather than tracing: the identical expression
+is carried by Mao et al. Eq. (10) and, character for character, by the MSRE fuel salt medium
+TRANSFORM ships. Cantor's own density correlation, <code>2553.3 - 0.562*T</code>, is a different
+one, and the INL tabulation of it does not state whether T is in kelvin or Celsius &mdash; read as
+kelvin it gives 2035 kg/m3 at 922 K, read as Celsius 2189, against 2242 here. That ambiguity is
+unresolved and is tracked as an open item; see
+<a href=\"modelica://MSRE.Media.MSRE_Properties\">MSRE_Properties</a> for it, for the reason
+TRANSFORM's medium is not adopted whole, and for the unresolved report number.</p>
+
+<p>No valid temperature range has been established for any of the four.</p>
 
 <p>Jeong et al. (2026) publish no property correlations and no property values, so <b>no
 correlation here may be described as Jeong exact</b>. This is a surrogate set throughout.</p>
