@@ -28,6 +28,25 @@ package FuelSalt
     annotation (Inline=true);
   end thermalConductivity;
 
+  /* Modelica Standard Library 4.1.0 added the function massFraction to
+     Modelica.Media.Interfaces.PartialMedium. TRANSFORM does not extend that package: it keeps its
+     own copy of the media interfaces (TRANSFORM.Media.Interfaces.Fluids.PartialMedium), so a
+     TRANSFORM-based medium such as this one only matches Modelica.Media.Interfaces.PartialMedium
+     structurally. The added function breaks that match, and then every
+     `redeclare package Medium` of a Modelica.Fluid or TRANSFORM component fails with
+     "Redeclaration requires a subtype ... missing public function massFraction". Declaring it
+     here restores the match. The body is the one MSL gives in PartialPureSubstance: the salt is a
+     single substance (fixedX = true), so nXi = 0 and the returned vector is empty. It is inert
+     under MSL 4.0.0, where nothing calls it. */
+  function massFraction "Return independent mass fractions (if any)"
+    extends Modelica.Icons.Function;
+    input ThermodynamicState state "Thermodynamic state record";
+    output MassFraction Xi[nXi] "Independent mass fractions";
+  algorithm
+    Xi := fill(0, 0);
+    annotation (Inline=true);
+  end massFraction;
+
   annotation (Documentation(info="<html>
 <h4>Property correlations</h4>
 <table border=\"1\">

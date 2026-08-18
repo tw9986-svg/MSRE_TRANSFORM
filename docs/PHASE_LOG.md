@@ -289,3 +289,54 @@ shape near the core boundary carries this discrepancy.
 It stays at 0.01778 m (0.7 in) while the flow area dropped 3.4 %, so the implied wetted
 perimeter moved from 0.0882 to 0.0852 m. Both are documented hardware in different sources and
 they are no longer mutually consistent. Affects the heat transfer area, not the transit times.
+
+## Toolchain note — MSL 4.1.0 `massFraction` breaks every TRANSFORM medium
+
+**Branch:** `claude/msre-massfraction-errors-erzuuf`
+**Status:** implemented. Not yet compiled — the fix has to be confirmed by a Dymola check.
+
+Checking `Verification.Steady_LoopBalance` under Dymola 2026x produced ~120 instances of
+
+> Redeclaration requires a subtype. But missing public function massFraction.
+
+against every `redeclare package Medium` in the loop, plus the same complaint about
+`Medium_coolant`, which is a TRANSFORM built-in that this library never touched.
+
+**Cause.** Modelica Standard Library 4.1.0 (2025-05-23) added
+
+```modelica
+replaceable partial function massFraction "Return independent mass fractions (if any)"
+  input ThermodynamicState state;
+  output MassFraction Xi[nXi];
+end massFraction;
+```
+
+to `Modelica.Media.Interfaces.PartialMedium`. TRANSFORM does not extend that package — it
+carries its own copy of the media interfaces
+(`TRANSFORM.Media.Interfaces.Fluids.PartialMedium`, which extends only
+`Modelica.Media.Interfaces.Types`), so a TRANSFORM medium is a subtype of MSL's `PartialMedium`
+only structurally. One added function is enough to break that match, and `PartialMedium` is the
+constraining package of every `Medium` in `Modelica.Fluid.Interfaces` and in the TRANSFORM
+closure relations. So no TRANSFORM-based medium can be redeclared into any fluid component
+under MSL 4.1.0. It is not specific to the fuel salt and not caused by anything in this library.
+Comparing the two `PartialMedium` packages class by class, `massFraction` is the only member MSL
+has and TRANSFORM lacks.
+
+**Fix.** Declare the function on this library's two media, with the empty body MSL itself uses
+in `PartialPureSubstance` (both salts are single substances, so `nXi = 0`):
+
+- `MSRE.Media.FuelSalt` gains `massFraction`, inherited by `FuelSalt_U235` and `FuelSalt_U233`.
+- `MSRE.Media.CoolantSalt` changes from an alias of
+  `TRANSFORM.Media.Fluids.FLiBe.LinearFLiBe_9999Li7_pT` to a package that extends it and adds
+  the same function. Nothing else about the coolant salt changes.
+
+The function is never called by any model here and is inert under MSL 4.0.0, so the fix is
+backward compatible. It does not patch TRANSFORM: any *other* TRANSFORM medium redeclared into
+a fluid component under MSL 4.1.0 will fail the same way and needs the same three lines.
+
+### Not part of this fix
+
+The same check reported `Class or component 'N_pump_start' not found in PrimarySystem msre`.
+`N_pump_start` has been a parameter of `PrimarySystem` since commit d55b826 (PR #7, merged), so
+either the working copy under check predates that merge or the message is a knock-on of the
+failed medium redeclaration. Re-check after pulling `main`.

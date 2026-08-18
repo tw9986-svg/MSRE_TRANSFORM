@@ -2,14 +2,31 @@ within MSRE;
 package Media "Molten-salt thermophysical property models for the MSRE"
   extends Modelica.Icons.Package;
 
-  package CoolantSalt = TRANSFORM.Media.Fluids.FLiBe.LinearFLiBe_9999Li7_pT
+  package CoolantSalt
     "MSRE secondary coolant salt LiF-BeF2 66-34 mol%, 99.99% Li-7 (TRANSFORM built-in)"
+    extends TRANSFORM.Media.Fluids.FLiBe.LinearFLiBe_9999Li7_pT;
+
+    /* See MSRE.Media.FuelSalt.massFraction for why this is here: Modelica Standard Library 4.1.0
+       added massFraction to Modelica.Media.Interfaces.PartialMedium, which no TRANSFORM medium
+       has, so the TRANSFORM salt no longer matches that constraining package. This package is
+       otherwise the TRANSFORM built-in unchanged - the extends adds the missing function and
+       nothing else. */
+    function massFraction "Return independent mass fractions (if any)"
+      extends Modelica.Icons.Function;
+      input ThermodynamicState state "Thermodynamic state record";
+      output MassFraction Xi[nXi] "Independent mass fractions";
+    algorithm
+      Xi := fill(0, 0);
+      annotation (Inline=true);
+    end massFraction;
+
     annotation (Documentation(info="<html>
 <p>The MSRE secondary coolant salt was LiF-BeF2 66-34 mol% with Li enriched in Li-7, which is
 exactly the salt TRANSFORM ships as
 <a href=\"modelica://TRANSFORM.Media.Fluids.FLiBe.LinearFLiBe_9999Li7_pT\">LinearFLiBe_9999Li7_pT</a>
-(ORNL-TM-3832 Table 3). The built-in model is therefore used directly rather than restating
-the same correlations here.</p>
+(ORNL-TM-3832 Table 3). The built-in model is therefore used rather than restating the same
+correlations here: this package adds nothing to it but the <code>massFraction</code> function
+that Modelica Standard Library 4.1.0 requires of a medium and TRANSFORM does not supply.</p>
 
 <h4>Agreement with the reported MSRE coolant-salt values at 922 K (1200 degF)</h4>
 <table border=\"1\">
@@ -25,6 +42,8 @@ harmless here because every secondary-side start temperature in
 <a href=\"modelica://MSRE.Systems.PrimarySystem\">PrimarySystem</a> is set explicitly from
 <code>T_coolant_start</code>; none of them falls back on <code>Medium.T_default</code>.</p>
 </html>"));
+  end CoolantSalt;
+
   package FuelSalt_U235 =
       MSRE.Media.FuelSalt (
       extraPropertiesNames={"dnp1","dnp2","dnp3","dnp4","dnp5","dnp6"},
