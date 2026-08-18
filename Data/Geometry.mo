@@ -72,7 +72,7 @@ record Geometry "MSRE nodalization and geometry (Modelica counterpart of the MAR
      reproduces the per-channel share of the graphite stack, so that both the convective area
      and the graphite heat capacity are preserved. */
   parameter SI.Length D_graphiteStack=1.40335
-    "Diameter of the graphite stack, taken as the core container inner diameter (55.25 in, ORNL/INL MSRE hardware)";
+    "Diameter of the graphite stack (55.25 in, ORNL/INL MSRE hardware)";
   final parameter SI.Area A_graphite_perChannel=(pi/4*D_graphiteStack^2 - A_core_total)/
       nChannels_total
     "Graphite cross-section per fuel channel: the stack area not taken by the channels, shared out";
@@ -108,19 +108,37 @@ record Geometry "MSRE nodalization and geometry (Modelica counterpart of the MAR
   /* ------------------------------------------------------------------
      Reactor vessel plena and downcomer
      ------------------------------------------------------------------ */
-  parameter SI.Volume V_lowerPlenum=0.0777 "Fuel salt volume of the lower plenum";
-  parameter SI.Length L_lowerPlenum=0.30 "Height of the lower plenum";
-  parameter SI.Volume V_upperPlenum=0.0777 "Fuel salt volume of the upper plenum";
-  parameter SI.Length L_upperPlenum=0.30 "Height of the upper plenum";
+  /* Vessel and core container hardware. The downcomer is the annulus between them, so its flow
+     area and hydraulic diameter follow from these four dimensions and are not entered. */
+  parameter SI.Length D_vessel_inner=1.4732
+    "Reactor vessel inner diameter (58 in, ORNL/INL MSRE hardware)";
+  parameter SI.Length th_vessel=0.0254
+    "Reactor vessel wall thickness (1 in, ORNL/INL MSRE hardware)";
+  parameter SI.Length D_coreContainer_inner=1.4097
+    "Core container inner diameter (55.5 in, ORNL/INL MSRE hardware)";
+  parameter SI.Length th_coreContainer=0.00635
+    "Core container wall thickness (0.25 in, ORNL/INL MSRE hardware)";
+  final parameter SI.Length D_coreContainer_outer=D_coreContainer_inner + 2*th_coreContainer
+    "Core container outer diameter (56 in)";
+
+  /* No published plenum volume was found. These two are unchanged estimates - see the record
+     documentation. */
+  parameter SI.Volume V_lowerPlenum=0.0777 "Fuel salt volume of the lower plenum (estimate, no published source)";
+  parameter SI.Length L_lowerPlenum=0.30 "Height of the lower plenum (estimate, no published source)";
+  parameter SI.Volume V_upperPlenum=0.0777 "Fuel salt volume of the upper plenum (estimate, no published source)";
+  parameter SI.Length L_upperPlenum=0.30 "Height of the upper plenum (estimate, no published source)";
 
   /* The plenum node the kinetics counts as part of the reactor core (120-03 and 190-01 of the
-     MARS input) is a thin slice at the core boundary, not a third of the plenum. Its volume is
-     what is left of the core inventory once the channel volume is taken out, and that is only
-     0.86 % of the core: 1606 kg at 2249 kg/m3 is 0.71403 m3 against 0.70792 m3 of channels. */
+     MARS input) is a thin slice at the core boundary, not a third of the plenum. The 3.055 litre
+     value was originally the remainder of the reported 1606 kg core inventory once the old
+     channel volume was taken out. That derivation is void now that the channel volume comes from
+     hardware and no longer reproduces 1606 kg, and it was not re-derived: re-deriving it would
+     fit the geometry to the reported inventory, which is exactly what this record no longer
+     does. It is kept at its previous value as an unsourced small node. */
   parameter SI.Volume V_lowerPlenum_core=0.003055
-    "Fuel salt volume of the lower plenum node that belongs to the reactor core";
+    "Fuel salt volume of the lower plenum node that belongs to the reactor core (unsourced, retained)";
   parameter SI.Volume V_upperPlenum_core=0.003055
-    "Fuel salt volume of the upper plenum node that belongs to the reactor core";
+    "Fuel salt volume of the upper plenum node that belongs to the reactor core (unsourced, retained)";
 
   /* The plena are given a uniform bore and non-uniform node lengths, so the core node's length
      is its share of the volume. See the open item in the documentation: the paper's own
@@ -130,19 +148,25 @@ record Geometry "MSRE nodalization and geometry (Modelica counterpart of the MAR
   final parameter SI.Length L_upperPlenum_core=V_upperPlenum_core*L_upperPlenum/V_upperPlenum
     "Axial length of the upper plenum node that belongs to the reactor core";
 
-  parameter SI.Volume V_downcomer=0.432371
-    "Fuel salt volume of the flow distributor + downcomer annulus; the item that absorbs the balance of the loop inventory";
-  parameter SI.Length L_downcomer=2.40 "Height of the downcomer";
-  parameter SI.Length Dh_downcomer=0.1163 "Hydraulic diameter of the downcomer annulus";
+  final parameter SI.Area A_downcomer=pi/4*(D_vessel_inner^2 - D_coreContainer_outer^2)
+    "Flow area of the downcomer annulus (0.115529 m2)";
+  final parameter SI.Length Dh_downcomer=D_vessel_inner - D_coreContainer_outer
+    "Hydraulic diameter of the downcomer annulus, twice the annular gap (0.0508 m)";
+  parameter SI.Length L_downcomer=2.40
+    "Flow length of the downcomer (estimate, no published source; the one free input left on the loop side)";
+  final parameter SI.Volume V_downcomer=A_downcomer*L_downcomer
+    "Fuel salt volume of the downcomer annulus (0.277270 m3)";
 
   /* ------------------------------------------------------------------
      External loop piping and pump
      ------------------------------------------------------------------ */
-  parameter SI.Length D_pipe=0.1286 "Inner diameter of the 5 in sch 40 loop piping";
+  parameter SI.Length D_pipe=0.127
+    "Inner diameter of the main connecting piping (5 in, ORNL/INL MSRE hardware)";
   parameter SI.Length L_outletPipe=4.00 "Reactor outlet pipe length (vessel to pump)";
   parameter SI.Length L_pumpToHX=5.00 "Pump discharge pipe length (pump to heat exchanger)";
   parameter SI.Length L_hxToVessel=7.00 "Heat exchanger outlet pipe length (to the vessel inlet)";
-  parameter SI.Volume V_pumpBowl=0.150 "Fuel salt volume of the pump bowl and volute";
+  parameter SI.Volume V_pumpBowl=0.150
+    "Fuel salt volume of the pump bowl and volute (estimate, no published source)";
   parameter SI.Length L_pumpBowl=0.60 "Effective flow length of the pump bowl";
 
   parameter SI.PressureDifference dp_pump_nominal=3.0e5
@@ -272,6 +296,18 @@ record Geometry "MSRE nodalization and geometry (Modelica counterpart of the MAR
   final parameter SIadd.NonDim err_V_channels_Mao=V_channels/V_channels_Mao - 1
     "Change in channel volume caused by moving from the Mao geometry to the hardware geometry (-24.73 %)";
 
+  /* Loop side, retired at the same time as the Mao core geometry. V_downcomer was never a
+     measurement: it was set to whatever made the loop inventory match the reported loop transit
+     time, and Dh_downcomer and D_pipe went with it. */
+  final parameter SI.Volume V_downcomer_fitted=0.432371
+    "Fitted downcomer volume - not active: the value that absorbed the balance of the reported loop inventory";
+  final parameter SI.Length Dh_downcomer_fitted=0.1163
+    "Fitted downcomer hydraulic diameter - not active; inconsistent with the vessel/container annulus";
+  final parameter SI.Length D_pipe_sch40=0.1286
+    "5 in schedule 40 inner diameter - not active; superseded by the 5 in nominal figure the INL MSRE description gives";
+  final parameter SIadd.NonDim err_V_downcomer_fitted=V_downcomer/V_downcomer_fitted - 1
+    "Change in downcomer volume caused by deriving it from the vessel annulus (-35.9 %)";
+
   final parameter SI.Length dz_closure=dz_lowerPlenum + dz_channels + dz_upperPlenum +
       dz_outletPipe + dz_pumpBowl + dz_pumpToHX + dz_hxShell + dz_hxToVessel + dz_downcomer
     "Sum of all elevation rises around the loop, which must be zero";
@@ -291,9 +327,12 @@ inventory where it does not. The distinction matters when reading the agreement 
 <tr><th></th><th>this model</th><th>paper (MARS)</th><th>fitted?</th></tr>
 <tr><td>core volume</td><td>0.53895 m3</td><td>-</td><td>no</td></tr>
 <tr><td>core transit time at 168 kg/s</td><td>7.22 s</td><td>9.56 s</td><td>no</td></tr>
-<tr><td>loop transit time at 168 kg/s</td><td>16.14 s</td><td>16.14 s</td><td>yes</td></tr>
-<tr><td>system transit time</td><td>23.36 s</td><td>25.63 s (measured 25.2 s)</td><td>-</td></tr>
+<tr><td>loop transit time at 168 kg/s</td><td>13.99 s</td><td>16.14 s</td><td>no</td></tr>
+<tr><td>system transit time</td><td>21.21 s</td><td>25.63 s (measured 25.2 s)</td><td>-</td></tr>
 </table>
+<p>Nothing in that table is fitted any more. Before Phase 5 the loop row read 16.14 s against
+16.14 s, and it read that way because <code>V_downcomer</code> had been set to whatever made it
+so.</p>
 
 <h4>The core transit time is a prediction, and it now disagrees with the paper</h4>
 <p>The core volume is the ORNL/INL hardware channel geometry (1140 channels of
@@ -319,10 +358,30 @@ settled the -24.5 % is an honest statement of a real disagreement between the ha
 dimensions and the reported transit time, and it should not be closed by adjusting a
 volume.</p>
 
-<p><b>The loop transit time is not.</b> <code>V_downcomer</code> is the item that absorbs the
-balance of the loop inventory and it was re-derived from <code>m_fuel_loop_paper</code>, so
-16.14 s is arithmetic rather than evidence. There is no published downcomer volume to check it
-against.</p>
+<h4>The loop side, and what is left unsourced there</h4>
+<p><code>V_downcomer</code> used to be the item that absorbed the balance of the loop
+inventory: it was set from <code>m_fuel_loop_paper</code>, so the 16.14 s it produced was
+arithmetic rather than evidence. It is now the vessel annulus. The reactor vessel inner
+diameter (58 in) and the core container outer diameter (55.5 in bore plus two 0.25 in walls,
+so 56 in) give an annular gap of 25.4 mm, hence</p>
+<table border=\"1\">
+<tr><th></th><th>fitted (retired)</th><th>vessel annulus (active)</th></tr>
+<tr><td><code>A_downcomer</code></td><td>0.18016 m2</td><td>0.115529 m2</td></tr>
+<tr><td><code>Dh_downcomer</code></td><td>0.1163 m</td><td>0.0508 m</td></tr>
+<tr><td><code>V_downcomer</code></td><td>0.432371 m3</td><td>0.277270 m3 (-35.9 %)</td></tr>
+</table>
+<p>The old hydraulic diameter of 0.1163 m was not the annulus of any vessel in the record; it
+was carried alongside the fitted volume. The area is now hardware and only
+<code>L_downcomer = 2.40 m</code> is still an estimate, so the fit has been reduced from a
+volume to a length rather than removed.</p>
+
+<p><b>What remains unsourced on the loop side.</b> No published value was found for any of
+these and none was invented; they keep the values they had and are marked as estimates in the
+record: the two plenum volumes (0.0777 m3 each), the core-boundary plenum nodes
+(0.003055 m3 each), <code>V_pumpBowl</code> (0.150 m3), <code>L_downcomer</code>, the three
+pipe lengths and the whole elevation set. <code>D_pipe</code> moved from the 5 in schedule 40
+bore of 0.1286 m to the 5 in figure the INL MSRE description gives, 0.127 m, which is a 2.5 %
+reduction in pipe volume and is the only piping quantity with a published counterpart.</p>
 
 <p>One thing does not reconcile. The core plenum nodes come out at about 3 litres each, which
 at this plenum bore is an axial length of 12 mm, against the 63.5 mm the paper states for
@@ -330,9 +389,8 @@ Volume 190-01 in its core-boundary sensitivity study. The transit times depend o
 and not the length, so nothing above is affected, but the plenum bore assumed here is evidently
 not the one the MARS input used.</p>
 
-<p>The individual volumes that carry the largest uncertainty are
-<code>V_downcomer</code> (which absorbs the balance of the loop inventory) and
-<code>V_pumpBowl</code>. Form losses and the heat exchanger area were, as in the paper,
+<p>The individual volumes that carry the largest uncertainty are now <code>V_pumpBowl</code>
+and the two plenum volumes, none of which has a published counterpart. Form losses and the heat exchanger area were, as in the paper,
 adjusted to give a sensible full-power steady state; both are exposed here so that the
 paper's sensitivity cases can be run directly:</p>
 <ul>
@@ -371,12 +429,14 @@ benchmark therefore pins the circulating inventory at</p>
 <tr><td>core</td><td><code>m_fuel_core_paper</code> 1606 kg</td>
     <td><code>m_fuel_core_model</code> 1212 kg</td><td><code>err_m_core</code> -24.5 %</td></tr>
 <tr><td>external loop</td><td><code>m_fuel_loop_paper</code> 2712 kg</td>
-    <td><code>m_fuel_loop_model</code> 2712 kg</td><td><code>err_m_loop</code> 0.0 %</td></tr>
+    <td><code>m_fuel_loop_model</code> 2351 kg</td><td><code>err_m_loop</code> -13.3 %</td></tr>
 </table>
-<p>and leaves the volume/density split of that mass undetermined. The loop error is zero
-because <code>V_downcomer</code> was obtained by dividing <code>m_fuel_loop_paper</code> by
-<code>d_fuel_ref</code>, which is circular and is the reason the loop side proves nothing. The
-core error is not zero because the core volume is now hardware and is allowed to disagree.</p>
+<p>and leaves the volume/density split of that mass undetermined. Both errors are now real
+measurements of a disagreement. The loop error used to be exactly zero, and that was not
+agreement: <code>V_downcomer</code> had been obtained by dividing
+<code>m_fuel_loop_paper</code> by <code>d_fuel_ref</code>, so the zero was the definition of
+<code>V_downcomer</code> read back out. With the downcomer taken from the vessel annulus the
+loop holds 13.3 % less salt than the reported loop transit time implies.</p>
 
 <p>The core side is now settled on the hardware and is <i>not</i> free:
 <code>V_channels = 0.53284 m3</code> follows from 1140 channels of 2.87524e-4 m2 over
@@ -390,8 +450,16 @@ dimensions, that conclusion no longer follows: the implied density is 34 % above
 correlations, which points at the definition of the core node rather than at any property
 correlation.</p>
 
-<p>The loop side cannot be settled the same way: <code>V_downcomer</code> was always the item
-that absorbed the balance of the inventory, so it has no independent value to check against and
-would simply be re-derived from <code>m_fuel_loop_paper</code>.</p>
+<p>The loop side now says the same thing as the core side, and more weakly because more of it
+is still estimated. 2712 kg in the loop at 2249.3 kg/m3 needs 1.2057 m3, against the 1.0452 m3
+this record holds once the downcomer is the vessel annulus. The missing 0.1603 m3 is 1.39 m of
+extra downcomer length, or a pump bowl twice the assumed size, or salt the MARS input counts as
+loop and this record does not. Which of those it is cannot be settled from the
+dimensions available here.</p>
+
+<p>Taking the two sides together: the reported inventory is 4318 kg and this record holds
+3563 kg of it at the same reference density, 17.5 % short. That number is the honest output of
+building the geometry from hardware and refusing to fit it, and it is the quantity any
+reconciliation has to explain.</p>
 </html>"));
 end Geometry;

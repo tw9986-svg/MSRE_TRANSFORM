@@ -508,3 +508,81 @@ Forced-circulation drift reactivity (U-235, Eq. 8, Cantor at 908 K) moves from 2
 `BLOCKED_NOT_RUN` — no Modelica toolchain in this environment. All values above were computed
 by hand outside Modelica from the same expressions now in the record; `Data/Geometry.mo` was
 checked for Modelica string and comment balance.
+
+---
+
+## Phase 5 — Plenum, downcomer and external-loop geometry
+
+**Scope:** the vessel/downcomer and piping block of `Data/Geometry.mo`. Continues Phase 4 and
+closes the deferral noted there. The heat exchanger is **not** included — see below.
+
+### Decisions taken
+
+| # | Decision | Rationale |
+|---|---|---|
+| 22 | The downcomer becomes the vessel/core-container annulus | `V_downcomer` was never a measurement: it was set to whatever made the loop inventory reproduce the reported loop transit time. Reactor vessel ID 58 in and core container OD 56 in (55.5 in bore + 2 × 0.25 in wall) give a 25.4 mm annular gap, so `A_downcomer` and `Dh_downcomer` now follow from hardware. |
+| 23 | `Dh_downcomer = 0.1163 m` is retired | It was not the annulus of any vessel in the record; it travelled with the fitted volume. The hardware value is 0.0508 m. |
+| 24 | `D_pipe` 0.1286 → 0.127 m | The 5 in figure the INL MSRE description gives, in place of the 5 in schedule 40 bore. The only piping quantity with a published counterpart. |
+| 25 | Unsourced loop quantities keep their values and are labelled as estimates, not replaced by invented ones | Plenum volumes, core-boundary plenum nodes, `V_pumpBowl`, `L_downcomer`, the three pipe lengths and the elevation set have no published counterpart in the ORNL/INL material available. Marked *estimate, no published source* in the record rather than guessed at. |
+| 26 | `V_lowerPlenum_core` / `V_upperPlenum_core` are **not** re-derived | Their 3.055 litre value was the remainder of the reported 1606 kg core inventory once the *old* channel volume was removed. That derivation is void after Phase 4, and redoing it would fit geometry to the reported inventory — the practice this whole line of work is removing. Kept as unsourced small nodes. |
+| 27 | The heat exchanger is left alone | Its shell-side hydraulic diameter (0.05606 m here vs 0.0209 m in the INL description) feeds `f_shellHT` and `Nu_floor_shell`, which are explicitly calibration parameters and out of scope. Changing the shell geometry without them would silently rescale the full-power duty. Recorded as O-16. |
+
+### Numbers established
+
+| Quantity | fitted / previous | ORNL/INL hardware (active) | Δ |
+|---|---|---|---|
+| `A_downcomer` | 0.180155 m² (implied) | **0.115529 m²** | −35.9 % |
+| `Dh_downcomer` | 0.1163 m | **0.0508 m** | −56.3 % |
+| `V_downcomer` | 0.432371 m³ | **0.277270 m³** | −35.9 % |
+| `D_pipe` | 0.1286 m | **0.127 m** | −1.2 % (−2.5 % on volume) |
+| `V_loop` | 1.205483 m³ | **1.045243 m³** | −13.3 % |
+| `V_total` | 1.744429 m³ | **1.584189 m³** | −9.2 % |
+
+At `d_fuel_ref = 2249.3 kg/m³` (unchanged):
+
+| | paper | this record | error |
+|---|---|---|---|
+| core mass | 1606 kg | 1212 kg | `err_m_core` −24.5 % |
+| loop mass | 2712 kg | **2351 kg** | `err_m_loop` **−13.3 %** |
+| circulating mass | 4318 kg | **3563 kg** | **−17.5 %** |
+| `tau_core_nominal` | 9.56 s | 7.22 s | −24.5 % |
+| `tau_loop_nominal` | 16.14 s | **13.99 s** | **−13.3 %** |
+| `tau_system_nominal` | 25.63 s | **21.21 s** | −17.2 % |
+
+Forced-circulation drift reactivity (U-235, Eq. 8, Cantor at 908 K): **269.9 pcm** against the
+paper's 228.4 pcm, improved from Phase 4's 277.0 pcm because shortening the loop transit time
+partly offsets the shortened core transit time. Natural-circulation drift is unchanged at
+1.49 / 10.12 pcm.
+
+Hydraulic sanity at rated flow: downcomer 0.65 m/s, Re ≈ 7.4e3; main piping 5.90 m/s,
+Re ≈ 1.7e5. Both remain turbulent.
+
+### What the loop error now means
+
+`err_m_loop` used to be exactly 0.0 %, and that was not agreement — it was
+`V_downcomer := m_fuel_loop_paper/d_fuel_ref` read back out. It is now −13.3 %, a real
+measurement. The missing 0.1603 m³ is 1.39 m of extra downcomer length, or a pump bowl twice
+the assumed size, or salt the MARS input counts as loop and this record does not. The available
+dimensions cannot distinguish those.
+
+Taken with Phase 4: **the reported circulating inventory is 4318 kg and hardware-based geometry
+holds 3563 kg of it, 17.5 % short.** That single number is what any reconciliation now has to
+explain, and it is the deliverable of Phases 4–5.
+
+### Open items
+
+- **O-16.** Heat-exchanger shell geometry. INL gives shell diameter 0.41 m and shell-side
+  Dh 0.0209 m against 0.05606 m here. Coupled to `f_shellHT` / `Nu_floor_shell`, so it needs to
+  move together with the HX calibration, not before it.
+- **O-17.** `L_downcomer = 2.40 m`, `V_pumpBowl = 0.150 m³`, the two plenum volumes and the
+  three pipe lengths remain unsourced. These are now the entire remaining freedom in the loop
+  volume.
+- **O-12 / O-13 / O-14 / O-15** from Phase 4 are unchanged and still open. O-14 (three failing
+  asserts) is now more pressing: `tau_system_nominal` is 21.21 s against a 25.63 ± 0.15 s
+  assert.
+
+### Verification status
+
+`BLOCKED_NOT_RUN` — no Modelica toolchain in this environment. All values computed by hand
+outside Modelica from the expressions now in the record; `Data/Geometry.mo` checked for
+Modelica string and comment balance.
