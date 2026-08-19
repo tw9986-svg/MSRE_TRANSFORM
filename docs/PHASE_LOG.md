@@ -1246,3 +1246,129 @@ run and no verification model was simulated. Every number above is a hand calcul
 outside Modelica from the expressions now in the record. `Data/Geometry.mo` was checked for
 Modelica string, comment and HTML-tag balance, and the diff was checked to confirm that the two
 plenum volumes are the only active parameters that changed.
+
+---
+
+## Phase 10 — Non-pump baseline: equal-volume plenum nodes and a single Gnielinski closure
+
+**Scope:** fuel-salt property (unchanged), core geometry (unchanged), plenum nodalization, core
+and heat-exchanger heat transfer, and the verification/documentation that follows. The pump,
+the kinetics, the precursor data, the external-loop pipe lengths and every assertion tolerance
+are untouched.
+
+### Decisions taken
+
+| # | Decision | Rationale |
+|---|---|---|
+| 28 | `V_lowerPlenum_core = V_lowerPlenum/nLP`, `V_upperPlenum_core = V_upperPlenum/nUP` | Replaces the 0.003055 m³ inventory-balance residue with a subdivision of a *referenced* volume. Tagged **ASSUMPTION / DERIVED FROM REFERENCE**, never PHYSICAL: nothing published says the three nodes are equal, and Jeong's 0.0635 m for 190-01 is not one third of any plenum height here. |
+| 29 | 0.003055 m³ retired to `V_plenumCore_legacy`, diagnostic only | Its derivation (reported 1606 kg ÷ old density − old channel volume) is benchmark fitting. |
+| 30 | `ClosureRelations.Nus_MoltenSalt` becomes **Gnielinski**, used by the core channels and both HX sides | One correlation, no calibration coefficient. `Nu_floor` and `f_enhance` inputs deleted. |
+| 31 | `f_shellHT` and `Nu_floor_shell` kept in `Data.Geometry` as **LEGACY/DEPRECATED**, connected to nothing | Deleting them would break nothing but loses the record of what was calibrated. |
+| 32 | The shell-side `L_char = D_tube_outer` modifier is removed | Gnielinski is a duct correlation; referring Nu to a different length than Re is formed with was part of the retired cross-flow hybrid. Both HX sides now use Dh consistently. |
+| 33 | `Dh_shell = 0.05606 m` tagged **OPEN / TO BE REVIEWED**, not changed | INL gives 0.0209 m. Changing it in the same pass as the closure would confound two effects. O-16. |
+| 34 | No sub-transitional correction added | Explicitly out of scope; see the blocker below. |
+
+### B. Parameter changes
+
+```
+V_lowerPlenum_core   0.003055        -> 0.1155327 m3   (= 0.346598/3)
+V_upperPlenum_core   0.003055        -> 0.1070377 m3   (= 0.321113/3)
+L_lowerPlenum_core   0.002644        -> 0.1000000 m
+L_upperPlenum_core   0.002854        -> 0.1000000 m
+V_plenumCore_legacy  (new)           -> 0.003055 m3, diagnostic only
+ReactorCore.V_lowerPlenum default  0.0777 -> 0.346598 m3
+ReactorCore.V_upperPlenum default  0.0777 -> 0.321113 m3
+Nus_MoltenSalt       Nu_floor + f*0.023*Re^0.8*Pr^0.4  -> Gnielinski
+f_shellHT = 3.0, Nu_floor_shell = 10.0   -> LEGACY/DEPRECATED, unused
+```
+
+Unchanged as required: `nChannels_total` 1140, `H_channels` 1.6256 m, `w/h/r_channel`,
+`A_channel` 2.875244e-4 m², `Dh_channel` 0.015851 m, `V_channels` 0.532836 m², the fuel-salt
+correlations, every pump parameter, `f_area_hx` 1.0, and all assertion tolerances.
+
+### C. Derived quantities
+
+| Quantity | Before | After |
+|---|---:|---:|
+| `V_channels` | 0.532836 m³ | 0.532836 m³ |
+| `V_core` | 0.538946 m³ | **0.755406 m³** |
+| `V_loop` | 1.557554 m³ | **1.341094 m³** |
+| `m_fuel_core_model` | 1184 kg | **1659.3 kg** |
+| `m_fuel_loop_model` | 3421 kg | **2945.7 kg** |
+| circulating | 4605 kg | 4605 kg (unchanged — salt moved between core and loop) |
+| `tau_core_nominal` | 7.046 s | **9.877 s** |
+| `tau_loop_nominal` | 20.364 s | **17.534 s** |
+| `tau_system_nominal` | 27.411 s | 27.411 s |
+
+### D. Jeong comparison
+
+| | model | Jeong | Δ |
+|---|---:|---:|---:|
+| τ_core | 9.877 s | 9.56 s | **+3.31 %** |
+| τ_loop | 17.534 s | 16.14 s | **+8.64 %** |
+| τ_total | 27.411 s | 25.63 s | **+6.95 %** |
+| core mass | 1659 kg | 1606 kg | +3.31 % |
+| loop mass | 2946 kg | 2712 kg | +8.64 % |
+| forced drift | **227.06 pcm** | 228.35 pcm | −1.29 pcm |
+
+**This closeness is not a validation.** It is the consequence of an equal-volume subdivision
+assumption meeting a referenced plenum volume; nothing was fitted, and equally nothing was
+confirmed. τ_core landing 3 % from 9.56 s must not be reported as agreement.
+
+### E. Heat-transfer implementation
+
+```
+Core uses Gnielinski:      YES
+HX shell uses Gnielinski:  YES
+HX tube uses Gnielinski:   YES
+old Nu_floor active:       NO  (input deleted from the model)
+old f_shellHT active:      NO  (parameter retained as LEGACY, connected to nothing)
+```
+
+### **BLOCKER — the core channels are laminar at rated flow**
+
+At 168 kg/s the MSRE fuel channels run at **Re = 812** (0.233 m/s through a 15.85 mm hydraulic
+diameter). Gnielinski is valid for Re ≳ 3000 and its `(Re − 1000)` factor turns negative below
+1000, so it returns:
+
+| Location | Re at rated flow | Pr | Gnielinski Nu | retired closure Nu |
+|---|---:|---:|---:|---:|
+| core fuel channel | **812** | 20.1 | **−3.99** | 20.6 |
+| HX shell side | 8637 | 20.1 | 101.6 | 333.0 |
+| HX tube side | 10510 | 15.8 | 112.2 | 118.7 |
+
+**A negative Nusselt number is a negative heat transfer coefficient.** This is not confined to
+natural circulation — it is the nominal, full-flow condition. As instructed, no low-Re
+correction was added, so the core side of the closure is presently unusable for any thermal
+result and the §20 steady-state checks (core ΔT, Q_core, Q_HX, energy balance) cannot be
+produced from it. Recorded as **O-19**, and it needs a user decision.
+
+The HX is unaffected on the correlation's own terms, but note the shell-side coefficient falls
+by a factor of ~12 (22450 → 1812 W/m²K) once `f_enhance = 3` and `L_char = D_tube_outer` are
+removed. That is the calibration being withdrawn, not an error.
+
+### F. Remaining OPEN items
+
+- **O-19 (new)** sub-transitional core-channel heat transfer — blocks all thermal results
+- **O-12B** physical volume of MARS 120-03 and 190-01
+- **O-16** HX shell-side hydraulic geometry (`Dh_shell` 0.05606 vs INL 0.0209 m)
+- **O-17** external-loop pipe lengths, `L_downcomer`, `V_pumpBowl`, plenum axial heights
+- **O-14** the failing assertions
+- **O-15** `dz_channels` 1.626 m vs `H_channels` 1.6256 m
+- pump validation (out of scope by instruction)
+
+### G. Verification status
+
+`BLOCKED_NOT_RUN` — no Modelica toolchain, no MSL/TRANSFORM installation. `checkModel`,
+`translate` and the steady-state run were **not** performed. Every number above is a hand
+calculation outside Modelica. Assertion states, with **no tolerance modified**:
+
+| Assert | Value | Limit | State |
+|---|---:|---:|---|
+| `Steady_LoopBalance` τ_system | 27.411 s | 25.63 ± 0.15 | FAIL |
+| `Properties_TransitTime` implied density | +37.2 % | ±5 % | FAIL |
+| `Properties_TransitTime` active vs legacy | 37.2 < 46.1 | — | PASS |
+| `Analytic_DriftReactivity` forced drift | 228.35 pcm | 228.4 ± 0.5 | PASS |
+| `Analytic_DriftReactivity` Beta_circulating | 0.004497 | 0.0045 ± 1e-4 | PASS |
+| `Analytic_DriftReactivity` nat. circ. low | 0.818 pcm | 0.9 ± 0.2 | **PASS** (was FAIL) |
+| `Analytic_DriftReactivity` nat. circ. high | 6.199 pcm | 6.7 ± 0.5 | FAIL by 0.0009 pcm |
