@@ -98,8 +98,10 @@ few pcm.</p>
 <h4>Sensitivity cases of the paper</h4>
 <ul>
 <li>Faster pump (moment of inertia halved): set <code>tau_startup = 1.7</code>.</li>
-<li>Extended core volume: increase <code>msre.geometry.V_upperPlenum</code> and reduce
-<code>msre.geometry.V_downcomer</code> by the same amount, which lengthens the core transit
+<li>Extended core volume: increase <code>msre.geometry.V_upperPlenum</code> and shorten
+<code>msre.geometry.L_downcomer</code> so that <code>V_downcomer</code> falls by the same
+amount (it is derived from the vessel annulus and is no longer settable directly), which
+lengthens the core transit
 time and shortens the loop transit time and, as the paper shows, reduces the reactivity
 loss.</li>
 </ul>

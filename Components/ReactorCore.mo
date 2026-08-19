@@ -22,12 +22,12 @@ model ReactorCore
 
   parameter Real nChannels[nRings]=fill(76, nRings) "# of fuel channels per ring";
   parameter Real nChannels_total=sum(nChannels) "Total # of fuel channels";
-  parameter SI.Length H_channels=1.6406 "Active channel height";
-  parameter SI.Area A_channel=3.785088e-4 "Flow area of a single fuel channel";
-  parameter SI.Length Dh_channel=0.01778 "Hydraulic diameter of a single fuel channel";
-  parameter SI.Length r_graphite_inner=0.013553
+  parameter SI.Length H_channels=1.6256 "Active channel height";
+  parameter SI.Area A_channel=2.875244e-4 "Flow area of a single fuel channel";
+  parameter SI.Length Dh_channel=0.015851 "Hydraulic diameter of a single fuel channel";
+  parameter SI.Length r_graphite_inner=0.011548
     "Inner radius of the equivalent graphite annulus";
-  parameter SI.Length r_graphite_outer=0.020282
+  parameter SI.Length r_graphite_outer=0.021765
     "Outer radius of the equivalent graphite annulus";
   parameter SI.Length dz_channels=H_channels "Elevation rise across the fuel channels";
 
@@ -285,6 +285,15 @@ there. The core cells are ordered as</p>
 <li>cell <code>nRings*nAxial+1</code>, the last lower plenum node;</li>
 <li>cell <code>nRings*nAxial+2</code>, the first upper plenum node.</li>
 </ol>
+<p>This ordering is the paper's control-volume definition and is kept as such. The
+<i>volumes</i> of the two boundary nodes are a different matter: the paper does not publish
+them, and the values this library carries are legacy figures left over from an earlier
+inventory balance rather than measurements of 120-03 and 190-01. The paper does state that
+190-01 is 0.0635 m long in the base case, against the 0.0118 m that follows from the volume
+used here. See <a href=\"modelica://MSRE.Data.Geometry\">Data.Geometry</a>, where the
+provenance of each is classified and the benchmark-equivalent figures are reported without
+being connected to anything.</p>
+
 <p>The core-boundary sensitivity of the paper, which lengthens Volume 190-01 and shortens the
 rest of the upper plenum, is reproduced here by increasing
 <code>V_upperPlenum</code> while reducing an equal loop volume, so that the core

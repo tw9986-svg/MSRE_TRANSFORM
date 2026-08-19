@@ -16,13 +16,13 @@ model CoreChannel
   parameter Real nParallel=76 "# of identical fuel channels represented by this ring";
   parameter Integer nV=20 "# of axial nodes";
   parameter Integer nR=3 "# of radial nodes in the graphite";
-  parameter SI.Length length=1.6406 "Active channel length";
+  parameter SI.Length length=1.6256 "Active channel length";
   parameter SI.Length dheight=length "Elevation rise over the channel";
-  parameter SI.Area crossArea=3.785088e-4 "Flow area of a single channel";
-  parameter SI.Length dimension=0.01778 "Hydraulic diameter of a single channel";
-  parameter SI.Length r_graphite_inner=0.013553
+  parameter SI.Area crossArea=2.875244e-4 "Flow area of a single channel";
+  parameter SI.Length dimension=0.015851 "Hydraulic diameter of a single channel";
+  parameter SI.Length r_graphite_inner=0.011548
     "Inner radius of the equivalent graphite annulus";
-  parameter SI.Length r_graphite_outer=0.020282
+  parameter SI.Length r_graphite_outer=0.021765
     "Outer radius of the equivalent graphite annulus";
 
   /* ---------------- Pressure loss ---------------- */
