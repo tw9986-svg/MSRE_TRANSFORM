@@ -78,18 +78,19 @@ This ratio is one of the best established numbers about the MSRE; a deviation me
 precursor data or Eq. 8 is wrong.", AssertionLevel.error);
 
   /* Unlike the two above, this one tests the geometry rather than Eq. 8: drho_lo and drho_hi
-     follow from V_core and V_loop. Neither the core nor the loop volume is fitted to anything
-     any more, so it checks a prediction rather than a calibration - and the prediction
-     currently misses. It fails at the Compere density too (1.49 and 10.12 pcm), so the failure
-     is the PARTIAL_GEOMETRY_BASELINE mismatch and not the property baseline. The tolerances
-     are deliberately unchanged; see open item O-14. */
+     follow from V_core and V_loop. Neither volume is fitted to a transit time, so it checks a
+     prediction rather than a calibration. The low-flow case now holds at 0.818 pcm and the
+     high-flow case misses by about 0.001 pcm at 6.199. It also misses at the Compere density
+     (0.781 and 5.959), so nothing here is a property-baseline effect. The tolerances are
+     deliberately unchanged; see open item O-14. */
   assert(abs(drho_lo - 0.9e-5) < 2e-6 and abs(drho_hi - 6.7e-5) < 5e-6, "Drift reactivity over
 the natural circulation transient comes out at " + String(drho_lo_pcm) + " and "
      + String(drho_hi_pcm) + " pcm, against the 0.9 and 6.7 pcm the paper reports in Section 4.3.
 These follow from V_core and V_loop, so this also checks that the geometry reproduces the
-transit times, and at present it does not: the core volume is 26 % short of what the reported
-core transit time implies. See MSRE.Data.Geometry, open items O-12 and O-14.",
-    AssertionLevel.error);
+transit times. The low-flow case holds; the high-flow case misses its 0.5 pcm limit by about
+0.001 pcm, which is marginal rather than informative. Both volumes rest on the core-boundary
+nodes being equal-volume thirds of the referenced plenum totals, which is an assumption. See
+MSRE.Data.Geometry, open items O-12B and O-14.", AssertionLevel.error);
 
   annotation (
     experiment(StopTime=1),
@@ -117,7 +118,7 @@ assertion tolerances.</p>
 <tr><td>Beta_eff circulating (static 0.006781)</td><td>~0.0045</td><td>0.004497</td>
     <td>same - density free</td></tr>
 <tr><td>drift reactivity, U-233, 1.46 kg/s / 4.45 kg/s</td><td>0.9 / 6.7 pcm</td>
-    <td><b>1.56 / 10.49 pcm</b></td><td>1.49 / 10.12 pcm</td></tr>
+    <td><b>0.818 / 6.199 pcm</b></td><td>0.781 / 5.959 pcm</td></tr>
 </table>
 
 <p>The first two rows use the transit times the paper reports directly, so no density enters
@@ -126,11 +127,15 @@ them and switching the baseline leaves them untouched. They still hold.</p>
 <p>The third row is the useful one for the plant model rather than the function: those transit
 times are <code>rho*V/m_flow</code> from <code>geometry.V_core</code> and
 <code>geometry.V_loop</code>, so the row moves whenever either the geometry or the density
-moves. It now misses its targets, and the Compere column shows why that is not a property
-question: the two correlations differ by 2.4 % while the row is out by 74 % and 57 %. The cause
-is the core volume, which is 26 % short of what the reported core transit time implies once the
-channel geometry is built from ORNL/INL hardware dimensions rather than from the retired Mao
-flow area. See <a href=\"modelica://MSRE.Data.Geometry\">Data.Geometry</a>, open items O-12
+moves. The low-flow case now holds at 0.82 pcm against 0.9 +- 0.2; the high-flow case is
+6.1991 pcm against 6.7 +- 0.5, a deviation of 0.5009 pcm against a 0.5 pcm limit, so it fails
+by 0.0009 pcm. That is a marginal fail and should be read as such rather than as a result.
+Neither tolerance was touched.</p>
+
+<p>Both numbers moved because the two core-boundary nodes became equal-volume thirds of the
+referenced plenum totals, which enlarged <code>V_core</code> and reduced <code>V_loop</code>.
+That is an assumption, not a measurement, so the improvement is not evidence that the geometry
+is right. See <a href=\"modelica://MSRE.Data.Geometry\">Data.Geometry</a>, open items O-12B
 and O-14.</p>
 
 <h4>Why this is verification and not validation</h4>

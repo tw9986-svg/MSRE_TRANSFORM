@@ -31,10 +31,10 @@ model ReactorCore
     "Outer radius of the equivalent graphite annulus";
   parameter SI.Length dz_channels=H_channels "Elevation rise across the fuel channels";
 
-  parameter SI.Volume V_lowerPlenum=0.0777 "Lower plenum fuel salt volume";
+  parameter SI.Volume V_lowerPlenum=0.346598 "Lower plenum fuel salt volume (ORNL reference, 12.24 ft3); overridden from Data.Geometry by PrimarySystem";
   parameter SI.Length L_lowerPlenum=0.30 "Lower plenum height";
   parameter SI.Length dz_lowerPlenum=L_lowerPlenum "Elevation rise across the lower plenum";
-  parameter SI.Volume V_upperPlenum=0.0777 "Upper plenum fuel salt volume";
+  parameter SI.Volume V_upperPlenum=0.321113 "Upper plenum fuel salt volume (ORNL reference, 11.34 ft3); overridden from Data.Geometry by PrimarySystem";
   parameter SI.Length L_upperPlenum=0.30 "Upper plenum height";
   parameter SI.Length dz_upperPlenum=L_upperPlenum "Elevation rise across the upper plenum";
 

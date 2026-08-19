@@ -261,13 +261,7 @@ model PrimarySystem
     redeclare package Medium_tube = Medium_coolant,
     redeclare package Material_tubeWall = TRANSFORM.Media.Solids.AlloyN,
     counterCurrent=true,
-    redeclare model HeatTransfer_shell = MSRE.ClosureRelations.Nus_MoltenSalt (
-        f_enhance=geometry.f_shellHT,
-        Nu_floor=geometry.Nu_floor_shell,
-        L_char=fill(
-            geometry.D_tube_outer,
-            geometry.nHX,
-            1)),
+    redeclare model HeatTransfer_shell = MSRE.ClosureRelations.Nus_MoltenSalt,
     redeclare model HeatTransfer_tube = MSRE.ClosureRelations.Nus_MoltenSalt,
     redeclare model InternalTraceGen_shell =
         TRANSFORM.Fluid.ClosureRelations.InternalTraceGeneration.Models.DistributedVolume_Trace_1D.GenericTraceGeneration

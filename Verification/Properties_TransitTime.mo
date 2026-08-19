@@ -179,22 +179,24 @@ salt as core that this record counts as plenum and downcomer. See
 <table border=\"1\">
 <tr><th>Property model</th><th>rho at 908 K</th><th>tau_core</th><th>tau_loop</th>
     <th>tau_system</th><th>drift reactivity</th></tr>
-<tr><td><b>Cantor (ACTIVE)</b></td><td><b>2196.514</b></td><td><b>7.046 s</b></td>
-    <td><b>13.666 s</b></td><td><b>20.713 s</b></td><td><b>269.9 pcm</b></td></tr>
-<tr><td>Compere (reference)</td><td>2249.322</td><td>7.216 s</td><td>13.995 s</td>
-    <td>21.210 s</td><td>267.2 pcm</td></tr>
-<tr><td>legacy (reference)</td><td>2063.097</td><td>6.618 s</td><td>12.836 s</td>
-    <td>19.454 s</td><td>277.0 pcm</td></tr>
+<tr><td><b>Cantor (ACTIVE)</b></td><td><b>2196.514</b></td><td><b>9.877 s</b></td>
+    <td><b>17.534 s</b></td><td><b>27.411 s</b></td><td><b>227.1 pcm</b></td></tr>
+<tr><td>Compere (reference)</td><td>2249.322</td><td>10.114 s</td><td>17.956 s</td>
+    <td>28.070 s</td><td>224.4 pcm</td></tr>
+<tr><td>legacy (reference)</td><td>2063.097</td><td>9.277 s</td><td>16.469 s</td>
+    <td>25.746 s</td><td>234.1 pcm</td></tr>
 <tr><td><i>paper (MARS)</i></td><td><i>not published</i></td><td><i>9.56 s</i></td>
     <td><i>16.14 s</i></td><td><i>25.63 s</i></td><td><i>228.4 pcm</i></td></tr>
 </table>
 
 <p><code>tau = rho*V/m_flow</code>: the benchmark states a <b>mass</b> flow rate, so this model
-is genuinely density dependent and switching the baseline moves every row. Note how little of
-the mismatch the density explains. Cantor and Compere differ by 2.3 % while the gap to the
-paper is 26 % on the core side, so <b>the benchmark mismatch is not a Compere-versus-Cantor
-question</b>. That is the point of unifying the baseline: it removes an explanation that was
-never doing any work.</p>
+is genuinely density dependent and switching the baseline moves every row. The gap to the paper
+is now +3.3 % on the core side and +8.6 % on the loop side, against a 2.3 % spread between the
+two density correlations, so <b>the residual mismatch is not a Compere-versus-Cantor
+question</b>. It also should not be read as agreement: the core row is that close because the
+two core-boundary nodes are assumed to be equal-volume thirds of the referenced plenum totals,
+which is an assumption and not a measurement. See
+<a href=\"modelica://MSRE.Data.Geometry\">Data.Geometry</a>, open item O-12B.</p>
 
 <h4>Why this is not circular</h4>
 <p>Nothing here uses a volume that was calibrated against a transit time. The channel volume is

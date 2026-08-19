@@ -171,8 +171,12 @@ a secondary role.</p>
 </ul>
 <p>The paper concludes that heat removal on the secondary side dominates this test and that the
 shell-side heat transfer coefficient at low flow is the decisive uncertainty. In this model that
-uncertainty is concentrated in <code>msre.geometry.Nu_floor_shell</code>, which sets the
-shell-side coefficient in the natural circulation regime, and
-<code>msre.geometry.f_shellHT</code>, which sets it at rated flow.</p>
+uncertainty was concentrated in <code>msre.geometry.Nu_floor_shell</code> and
+<code>msre.geometry.f_shellHT</code>. <b>Both are now LEGACY/DEPRECATED and connected to
+nothing:</b> the heat transfer closure is Gnielinski on every surface, with no calibration
+coefficient. That also means this experiment currently has no valid core heat transfer at all,
+because the fuel channels are laminar and Gnielinski returns a negative Nusselt number there -
+see <a href=\"modelica://MSRE.ClosureRelations.Nus_MoltenSalt\">Nus_MoltenSalt</a> and open
+item O-19</p>
 </html>"));
 end NaturalCirculation;
