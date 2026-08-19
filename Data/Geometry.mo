@@ -134,18 +134,24 @@ record Geometry "MSRE nodalization and geometry (Modelica counterpart of the MAR
   final parameter SI.Length D_coreContainer_outer=D_coreContainer_inner + 2*th_coreContainer
     "DERIVED | core container outer diameter (56 in)";
 
-  /* Plenum totals. No published MSRE plenum volume was found, so these four are assumptions and
-     are not to be adjusted to close an inventory. Note that a plenum TOTAL volume and a Jeong
-     core-boundary NODE volume are different things: V_upperPlenum is the whole upper plenum,
-     while MARS Volume 190-01 is one node inside it. */
-  parameter SI.Volume V_lowerPlenum=0.0777
-    "ASSUMPTION | no published source: fuel salt volume of the whole lower plenum";
+  /* Plenum totals (O-17). The two VOLUMES are now the MSRE fuel-salt fluid volumes reported in
+     ORNL/TM-2019/1359, which attributes the MSRE volume information to ORNL-4865: 12.24 ft3 for
+     the lower plenum and 11.34 ft3 for the upper. The conversion is exact,
+     1 ft3 = 0.028316846592 m3. The two axial HEIGHTS have no confirmed source and stay
+     assumptions; they are not to be adjusted to close an inventory or a transit time.
+
+     Note that a plenum TOTAL volume and a Jeong core-boundary NODE volume are different
+     things: V_upperPlenum is the whole upper plenum, while MARS Volume 190-01 is one node
+     inside it. Nothing about 120-03 or 190-01 may be inferred from these totals; they stay
+     O-12B OPEN. */
+  parameter SI.Volume V_lowerPlenum=0.346598
+    "REFERENCE | ORNL/TM-2019/1359 citing ORNL-4865: total lower-plenum fuel-salt fluid volume, 12.24 ft3";
   parameter SI.Length L_lowerPlenum=0.30
-    "ASSUMPTION | no published source: height of the lower plenum";
-  parameter SI.Volume V_upperPlenum=0.0777
-    "ASSUMPTION | no published source: fuel salt volume of the whole upper plenum";
+    "ASSUMPTION/OPEN | no independently confirmed axial height for the whole lower plenum";
+  parameter SI.Volume V_upperPlenum=0.321113
+    "REFERENCE | ORNL/TM-2019/1359 citing ORNL-4865: total upper-plenum fuel-salt fluid volume, 11.34 ft3";
   parameter SI.Length L_upperPlenum=0.30
-    "ASSUMPTION | no published source: height of the upper plenum";
+    "ASSUMPTION/OPEN | no independently confirmed axial height for the whole upper plenum";
 
   /* Core boundary nodes: MARS Volume 120-03 (lower) and 190-01 (upper) of Jeong et al. (2026).
      The control-volume DEFINITION is confirmed by the paper and is kept - each is one node, each
@@ -171,14 +177,16 @@ record Geometry "MSRE nodalization and geometry (Modelica counterpart of the MAR
   parameter SI.Volume V_upperPlenum_core=0.003055
     "LEGACY/OPEN | benchmark-derived, not physical: fuel salt volume of MARS Volume 190-01. O-12B found Jeong's length but no independent flow area; still OPEN";
 
-  /* The plena are given a uniform bore and non-uniform node lengths, so each core node's length
-     is its share of the plenum volume. Both inherit the LEGACY/OPEN status of the volumes they
-     come from. L_upperPlenum_core lands at 11.8 mm against the 63.5 mm the paper states for
-     190-01, which is the clearest single sign that the 3.055 litre volume is not the paper's. */
+  /* Legacy diagnostic, kept for comparison only. It divides a LEGACY/OPEN node volume by an
+     OPEN plenum height under a uniform-bore assumption that nothing supports, so it is DERIVED
+     from LEGACY/OPEN inputs and is NOT an independently reconstructed physical MARS-node
+     length. Both values shrank when O-17 enlarged the plenum totals, which moves them further
+     from the 0.0635 m Jeong states for 190-01; that is a consequence of the numerator staying
+     LEGACY/OPEN, not evidence about either node. */
   final parameter SI.Length L_lowerPlenum_core=V_lowerPlenum_core*L_lowerPlenum/V_lowerPlenum
-    "DERIVED from LEGACY/OPEN | axial length of MARS Volume 120-03 as modelled here (0.0118 m)";
+    "DERIVED from LEGACY/OPEN | uniform-bore share of the plenum height, not a physical MARS-node length (0.002644 m)";
   final parameter SI.Length L_upperPlenum_core=V_upperPlenum_core*L_upperPlenum/V_upperPlenum
-    "DERIVED from LEGACY/OPEN | axial length of MARS Volume 190-01 as modelled here (0.0118 m, paper states 0.0635 m)";
+    "DERIVED from LEGACY/OPEN | uniform-bore share of the plenum height, not a physical MARS-node length (0.002854 m, paper states 0.0635 m for 190-01)";
 
   /* ------------------------------------------------------------------
      Jeong core boundary: reference values and benchmark-equivalent diagnostics
@@ -206,7 +214,7 @@ record Geometry "MSRE nodalization and geometry (Modelica counterpart of the MAR
   final parameter SI.Volume V_core_JeongEq=tau_core_paper*m_flow_nominal/d_fuel_ref
     "BENCHMARK-EQUIVALENT, NOT PHYSICAL | core volume the reported core transit time implies at the reporting density (0.731195 m3)";
   final parameter SI.Volume V_120_03_JeongEq=V_core_JeongEq - V_channels - V_190_01_JeongEq
-    "BENCHMARK-EQUIVALENT, NOT PHYSICAL | residual left for MARS Volume 120-03; it exceeds this record's whole lower plenum, which is the point of reporting it (0.130971 m3)";
+    "BENCHMARK-EQUIVALENT, NOT PHYSICAL | residual left for MARS Volume 120-03; 37.8 % of this record's whole lower plenum since O-17, against 169 % before it (0.130971 m3)";
 
   final parameter SI.Area A_downcomer=pi/4*(D_vessel_inner^2 - D_coreContainer_outer^2)
     "DERIVED | ORNL/INL hardware: flow area of the downcomer annulus (0.115529 m2)";
@@ -424,10 +432,11 @@ that it travels with the parameter:</p>
     <td>BENCHMARK-EQUIVALENT</td><td>as above</td></tr>
 <tr><td><code>V_core_JeongEq</code>, <code>V_120_03_JeongEq</code></td><td>0.731195, 0.130971 m3</td>
     <td>BENCHMARK-EQUIVALENT</td><td>reported tau_C, as a residual</td></tr>
-<tr><td><code>V_lowerPlenum</code>, <code>V_upperPlenum</code></td><td>0.0777 m3 each</td>
-    <td>ASSUMPTION</td><td>no published source</td></tr>
+<tr><td><code>V_lowerPlenum</code>, <code>V_upperPlenum</code></td>
+    <td>0.346598 m3, 0.321113 m3</td><td><b>REFERENCE</b></td>
+    <td>ORNL/TM-2019/1359 citing ORNL-4865, 12.24 and 11.34 ft3 (O-17)</td></tr>
 <tr><td><code>L_lowerPlenum</code>, <code>L_upperPlenum</code></td><td>0.30 m each</td>
-    <td>ASSUMPTION</td><td>no published source</td></tr>
+    <td>ASSUMPTION / OPEN</td><td>no published source; not fixed by O-17</td></tr>
 <tr><td><code>D_vessel_inner</code>, <code>th_vessel</code>,
         <code>D_coreContainer_inner</code>, <code>th_coreContainer</code></td>
     <td>1.4732, 0.0254, 1.4097, 0.00635 m</td><td>PHYSICAL</td><td>ORNL/INL hardware</td></tr>
@@ -515,14 +524,15 @@ figure by 42 to 61 %, which is far too wide to call a reconstruction. Choosing w
 closest to 1.06123 m2 would be benchmark fitting with extra steps. <b>190-01 stays OPEN.</b></p>
 
 <h4>The collateral finding, which is the useful part</h4>
-<p>The two <i>plenum totals</i> in this record are assumptions of 0.0777 m3 each. The figures
-above put the lower plenum at about 0.2215 m3 and the upper plenum at about 0.3211 m3 -
-<b>2.9 and 4.1 times larger</b>. Even discounted for the porosity-1.0 treatment, that is the
-right order of magnitude to matter: it is independent support for the first of the two readings
-offered under O-12, that the MARS plena are much larger than this record assumes, and it points
-at <code>V_lowerPlenum</code> and <code>V_upperPlenum</code> rather than at the channel geometry
-as the place the missing circulating inventory is hiding. Those two parameters are O-17 scope
-and were not touched here.</p>
+<p>The two <i>plenum totals</i> were assumptions of 0.0777 m3 each when this review was
+written. The figures above put the lower plenum near 0.2215 m3 and the upper plenum near
+0.3211 m3 - <b>2.9 and 4.1 times larger</b> - which pointed at <code>V_lowerPlenum</code> and
+<code>V_upperPlenum</code> rather than at the channel geometry as the place the missing
+circulating inventory was hiding. That lead was followed up in O-17 below, and the totals are
+now REFERENCE values. <b>The ~0.2215 m3 lower-plenum figure was a secondary SAM porous-medium
+estimate</b> (1.71 m2 at porosity 1.0 over the SAM 0.12954 m height) and is neither active nor
+a reference value; O-17 supersedes it with the ORNL MSRE fluid-volume figure of 12.24 ft3 =
+0.346598 m3. The upper-plenum figure in that row is the same 11.34 ft3 O-17 adopts.</p>
 
 <p>Two definition mismatches are worth recording alongside. The SAM core height of 1.6637 m
 (65.5 in) is 2.34 % longer than the 1.6256 m (64 in) active height used here, and the SAM core
@@ -544,20 +554,82 @@ volume were taken out, halved. Every input to that derivation has since been rep
 volume divided by a volumetric flow, so the node's flow area follows:</p>
 <p><code>A = V_flow*dtau/dL = 0.076485*1.11/0.0800 = 1.0612 m2</code></p>
 <p>which over the stated 0.0635 m baseline length is <b>0.067388 m3</b> - twenty-two times the
-3.055 litres this record uses, and 87 % of the entire upper plenum it assumes. The same
-arithmetic applied to the reported core transit time leaves <b>0.130971 m3</b> for 120-03,
-which is 169 % of this record's whole lower plenum. Both figures scale inversely with the
+3.055 litres this record uses, and 21.0 % of the whole upper plenum (it was 87 % of the
+0.0777 m3 assumed before O-17). The same arithmetic applied to the reported core transit time
+leaves <b>0.130971 m3</b> for 120-03, which is 37.8 % of the whole lower plenum, against 169 %
+of the assumed figure before O-17. Both figures scale inversely with the
 reporting density, so they moved by +2.40 % when it became the Cantor value; the residual for
 120-03 moved by +13.5 % because it is a difference of two larger numbers.</p>
 
-<p>Two readings survive that, and the available data does not choose between them: either the
-MARS plena are much larger than the 0.0777 m3 assumed here, or MARS counts as core-boundary
-nodes a region this record counts as plenum and downcomer. Both would also explain a good part
-of the 19.4 % circulating-inventory shortfall. What is <i>not</i> a legitimate response is
+<p>Two readings survived that when the plena were assumed at 0.0777 m3: either the MARS plena
+are much larger than assumed, or MARS counts as core-boundary nodes a region this record counts
+as plenum and downcomer. O-17 has since settled the first of them - the plena really are about
+four times larger - and the residual disagreement is now a loop-side <i>excess</i> rather than
+a shortfall, so the second reading is what is left to test. What is <i>not</i> a legitimate response is
 setting <code>V_upperPlenum_core := V_190_01_JeongEq</code>: that number is
 BENCHMARK-EQUIVALENT, it is derived from a MARS result rather than from hardware, and adopting
 it would put the transit-time fitting straight back in. It is reported and left disconnected on
 purpose.</p>
+
+<h4>O-17: the whole-plenum fluid volumes</h4>
+<p><b>Status: CLOSED / REFERENCE for the two volumes. The two plenum heights stay OPEN.</b></p>
+
+<table border=\"1\">
+<tr><th></th><th>lower plenum</th><th>upper plenum</th></tr>
+<tr><td>previous active value</td><td>0.0777 m3</td><td>0.0777 m3</td></tr>
+<tr><td>previous status</td><td colspan=\"2\">unsupported assumption, no published source</td></tr>
+<tr><td>reported fluid volume</td><td>12.24 ft3</td><td>11.34 ft3</td></tr>
+<tr><td>new active value</td><td><b>0.346598 m3</b></td><td><b>0.321113 m3</b></td></tr>
+<tr><td>ratio to the old assumption</td><td>4.46x</td><td>4.13x</td></tr>
+</table>
+
+<p>Source: <i>Status Report on the MSRE TRANSFORM Model for Thermal-Hydraulic Benchmarking</i>,
+ORNL/TM-2019/1359, which attributes its MSRE volume information to ORNL-4865. The conversion
+uses the exact factor 1 ft3 = 0.028316846592 m3, so 12.24 ft3 = 0.346598 m3 and
+11.34 ft3 = 0.321113 m3.</p>
+
+<p><b>What this does not settle.</b> These are whole-plenum <i>totals</i>. They say nothing
+about the volume of MARS Volume 120-03 or 190-01, which are single nodes inside those plena and
+are a different quantity: <code>V_lowerPlenum_core</code> and <code>V_upperPlenum_core</code>
+keep their 0.003055 m3 LEGACY/OPEN values, and <b>O-12B stays OPEN</b>. The axial heights
+<code>L_lowerPlenum</code> and <code>L_upperPlenum</code> also stay at 0.30 m as OPEN
+assumptions - the report gives fluid volumes, not a nodalization - so the uniform-bore node
+lengths derived from them remain diagnostics and not reconstructions. Nothing else was
+adjusted: no pipe length, no pump or heat exchanger volume, no density, no mass flow, no
+channel or downcomer geometry, and no assertion tolerance.</p>
+
+<h4>What O-17 changes, and what it does to the disagreement</h4>
+<table border=\"1\">
+<tr><th>Quantity</th><th>before O-17</th><th>after O-17</th></tr>
+<tr><td><code>V_core</code></td><td>0.538946 m3</td><td>0.538946 m3 (unchanged)</td></tr>
+<tr><td><code>V_loop</code></td><td>1.045243 m3</td><td><b>1.557554 m3</b> (+49.0 %)</td></tr>
+<tr><td><code>V_total</code></td><td>1.584189 m3</td><td><b>2.096500 m3</b> (+32.3 %)</td></tr>
+<tr><td><code>tau_core_nominal</code></td><td>7.046 s</td><td>7.046 s (unchanged)</td></tr>
+<tr><td><code>tau_loop_nominal</code></td><td>13.666 s</td><td><b>20.364 s</b></td></tr>
+<tr><td><code>tau_system_nominal</code></td><td>20.713 s</td><td><b>27.411 s</b> (paper 25.63 s)</td></tr>
+<tr><td><code>m_fuel_loop_model</code></td><td>2296 kg</td><td><b>3421 kg</b></td></tr>
+<tr><td><code>err_m_loop</code></td><td>-15.33 %</td><td><b>+26.17 %</b></td></tr>
+<tr><td>circulating inventory</td><td>3480 kg, -19.41 %</td><td><b>4605 kg, +6.66 %</b></td></tr>
+<tr><td><code>L_lowerPlenum_core</code></td><td>0.011795 m</td><td>0.002644 m (diagnostic)</td></tr>
+<tr><td><code>L_upperPlenum_core</code></td><td>0.011795 m</td><td>0.002854 m (diagnostic)</td></tr>
+</table>
+
+<p>The loop side has gone from holding 15.3 % less salt than the reported loop transit time
+implies to holding 26.2 % more, and the total circulating inventory from 19.4 % short to 6.7 %
+long. That is not a worse result: the old agreement on the total was the sum of an unsourced
+plenum assumption and an unexplained shortfall, and what is left now is a single, sharper
+statement - <b>the core side is 26.3 % short and the loop side is 26.2 % long, at almost
+exactly the same magnitude</b>. That is consistent with the second reading recorded under
+O-12: MARS counts as core-boundary salt a region this record counts as loop. It is recorded,
+not acted on; assigning that salt would require the MARS node volumes, which is O-12B and
+still OPEN.</p>
+
+<p>The natural-circulation drift barely moves, because at 1.46 and 4.45 kg/s both transit
+times are already long compared with every precursor half-life: 1.5619 and 10.4928 pcm become
+1.5619 and 10.5004 pcm. The forced-circulation drift computed at this record's own transit
+times moves from 269.9 to 287.7 pcm against the paper's 228.4 pcm, which is the same
+disagreement seen from the other side. <b>No assertion tolerance was changed and no assertion
+was removed</b> - the three that fail are O-14 and are left exactly as they were.</p>
 
 <h4>Where the numbers come from</h4>
 <p>Documented MSRE hardware dimensions are used wherever they are available:
@@ -573,12 +645,13 @@ inventory where it does not. The distinction matters when reading the agreement 
 <tr><th></th><th>this model</th><th>paper (MARS)</th><th>fitted?</th></tr>
 <tr><td>core volume</td><td>0.53895 m3</td><td>-</td><td>no</td></tr>
 <tr><td>core transit time at 168 kg/s</td><td>7.05 s</td><td>9.56 s</td><td>no</td></tr>
-<tr><td>loop transit time at 168 kg/s</td><td>13.67 s</td><td>16.14 s</td><td>no</td></tr>
-<tr><td>system transit time</td><td>20.71 s</td><td>25.63 s (measured 25.2 s)</td><td>-</td></tr>
+<tr><td>loop transit time at 168 kg/s</td><td>20.36 s</td><td>16.14 s</td><td>no</td></tr>
+<tr><td>system transit time</td><td>27.41 s</td><td>25.63 s (measured 25.2 s)</td><td>-</td></tr>
 </table>
 <p>Nothing in that table is fitted any more. Before Phase 5 the loop row read 16.14 s against
 16.14 s, and it read that way because <code>V_downcomer</code> had been set to whatever made it
-so.</p>
+so. The loop row moved from 13.67 s to 20.36 s in O-17, when the two plenum totals became the
+ORNL fluid volumes; that is a sourced input replacing an assumption, not a fit.</p>
 
 <h4>The core transit time is a prediction, and it now disagrees with the paper</h4>
 <p>The core volume is the ORNL/INL hardware channel geometry (1140 channels of
@@ -623,20 +696,24 @@ volume to a length rather than removed.</p>
 
 <p><b>What remains unsourced on the loop side.</b> No published value was found for any of
 these and none was invented; they keep the values they had and are marked as estimates in the
-record: the two plenum volumes (0.0777 m3 each), the core-boundary plenum nodes
+record: the two plenum <i>heights</i> (0.30 m each), the core-boundary plenum nodes
 (0.003055 m3 each), <code>V_pumpBowl</code> (0.150 m3), <code>L_downcomer</code>, the three
-pipe lengths and the whole elevation set. <code>D_pipe</code> moved from the 5 in schedule 40
+pipe lengths and the whole elevation set. The two plenum <i>volumes</i> have left this list:
+O-17 replaced the 0.0777 m3 assumptions with the ORNL fluid volumes, 0.346598 and
+0.321113 m3. <code>D_pipe</code> moved from the 5 in schedule 40
 bore of 0.1286 m to the 5 in figure the INL MSRE description gives, 0.127 m, which is a 2.5 %
 reduction in pipe volume and is the only piping quantity with a published counterpart.</p>
 
 <p>One thing does not reconcile. The core plenum nodes come out at about 3 litres each, which
-at this plenum bore is an axial length of 12 mm, against the 63.5 mm the paper states for
-Volume 190-01 in its core-boundary sensitivity study. The transit times depend on the volume
-and not the length, so nothing above is affected, but the plenum bore assumed here is evidently
-not the one the MARS input used.</p>
+under the uniform-bore assumption and the 0.30 m plenum heights is an axial length of 2.6 and
+2.9 mm, against the 63.5 mm the paper states for Volume 190-01 in its core-boundary sensitivity
+study. Those two lengths are diagnostics built on an OPEN height and a LEGACY/OPEN node volume,
+so the gap measures the node volumes rather than the plenum bore; the transit times depend on
+the volume and not the length, so nothing above is affected. O-17 widened the gap by enlarging
+the denominators, which is what a larger plenum holding the same 3 litre node must do.</p>
 
 <p>The individual volumes that carry the largest uncertainty are now <code>V_pumpBowl</code>
-and the two plenum volumes, none of which has a published counterpart. Form losses and the heat exchanger area were, as in the paper,
+and the two core-boundary plenum nodes, neither of which has a published counterpart. Form losses and the heat exchanger area were, as in the paper,
 adjusted to give a sensible full-power steady state; both are exposed here so that the
 paper's sensitivity cases can be run directly:</p>
 <ul>
@@ -712,14 +789,16 @@ benchmark therefore pins the circulating inventory at</p>
 <tr><td>core</td><td><code>m_fuel_core_paper</code> 1606 kg</td>
     <td><code>m_fuel_core_model</code> 1184 kg</td><td><code>err_m_core</code> -26.3 %</td></tr>
 <tr><td>external loop</td><td><code>m_fuel_loop_paper</code> 2712 kg</td>
-    <td><code>m_fuel_loop_model</code> 2296 kg</td><td><code>err_m_loop</code> -15.3 %</td></tr>
+    <td><code>m_fuel_loop_model</code> 3421 kg</td><td><code>err_m_loop</code> +26.2 %</td></tr>
 </table>
 <p>and leaves the volume/density split of that mass undetermined. Both errors are now real
 measurements of a disagreement. The loop error used to be exactly zero, and that was not
 agreement: <code>V_downcomer</code> had been obtained by dividing
 <code>m_fuel_loop_paper</code> by <code>d_fuel_ref</code>, so the zero was the definition of
-<code>V_downcomer</code> read back out. With the downcomer taken from the vessel annulus the
-loop holds 15.3 % less salt than the reported loop transit time implies.</p>
+<code>V_downcomer</code> read back out. It then went to -15.3 % when the downcomer became the
+vessel annulus, and to +26.2 % when O-17 gave the two plena their ORNL fluid volumes. The loop
+now holds more salt than the reported loop transit time implies, by very nearly the same
+fraction that the core holds less.</p>
 
 <p>The core side is now settled on the hardware and is <i>not</i> free:
 <code>V_channels = 0.53284 m3</code> follows from 1140 channels of 2.87524e-4 m2 over
@@ -734,16 +813,18 @@ dimensions, that conclusion no longer follows: the implied density is 37 % above
 correlation, which points at the definition of the core node rather than at any property
 correlation.</p>
 
-<p>The loop side now says the same thing as the core side, and more weakly because more of it
-is still estimated. 2712 kg in the loop at 2196.5 kg/m3 needs 1.2345 m3, against the 1.0452 m3
-this record holds once the downcomer is the vessel annulus. The missing 0.1892 m3 is 1.64 m of
-extra downcomer length, or a pump bowl 2.3 times the assumed size, or salt the MARS input
-counts as loop and this record does not. Which of those it is cannot be settled from the
-dimensions available here.</p>
+<p>The loop side now points the other way, and that is the substantive result of O-17. 2712 kg
+in the loop at 2196.5 kg/m3 needs 1.2345 m3; this record held 1.0452 m3 while the plena were
+assumed at 0.0777 m3, and holds 1.5576 m3 now that they are the ORNL fluid volumes. The excess
+is 0.3231 m3. It cannot be removed by shortening the downcomer, which holds only 0.2773 m3 in
+total, so it is not a loop-length estimate that is wrong.</p>
 
 <p>Taking the two sides together: the reported inventory is 4318 kg and this record holds
-3480 kg of it at the same reference density, 19.4 % short. That number is the honest output of
-building the geometry from hardware and refusing to fit it, and it is the quantity any
-reconciliation has to explain.</p>
+4605 kg of it at the same reference density, 6.7 % long, made of a core that is 422 kg short
+and a loop that is 709 kg over. The two sides used to err in the same direction and now err in
+opposite directions by comparable amounts, which is what a boundary drawn in a different place
+looks like: salt that MARS counts inside its core-boundary nodes and this record counts as
+plenum. Confirming that needs the MARS node volumes - O-12B, still OPEN - and no volume here
+was moved to make the two sides meet.</p>
 </html>"));
 end Geometry;

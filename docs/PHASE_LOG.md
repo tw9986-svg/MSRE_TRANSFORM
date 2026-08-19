@@ -1088,3 +1088,161 @@ to those hosts, the review can be redone against primary text with table and pag
 `BLOCKED_NOT_RUN` — no Modelica toolchain. No computation in the library changed, so no
 re-evaluation was needed; the candidate arithmetic above was done by hand outside Modelica.
 `Data/Geometry.mo` was checked for Modelica string and comment balance.
+
+---
+
+## Phase 10 — O-17: whole-plenum fuel-salt volumes
+
+```
+O-17 — WHOLE PLENUM FLUID VOLUMES
+
+Previous active values:
+  lower = 0.0777 m3
+  upper = 0.0777 m3
+  status = unsupported assumptions
+
+Reference:
+  ORNL/TM-2019/1359
+  Status Report on the MSRE TRANSFORM Model for Thermal-Hydraulic Benchmarking
+
+Reported values:
+  lower-plenum fluid volume = 12.24 ft3 = 0.346598 m3
+  upper-plenum fluid volume = 11.34 ft3 = 0.321113 m3
+
+The report attributes the MSRE volume information to ORNL-4865.
+
+Decision:
+  Promote whole-plenum total volumes to REFERENCE.
+
+Do NOT infer individual Jeong MARS node volumes from these totals.
+Volumes 120-03 and 190-01 remain O-12B OPEN.
+Whole-plenum axial heights remain assumptions/open.
+```
+
+**Decision: CLOSED / REFERENCE for the two volumes. The two plenum heights stay OPEN.**
+
+### A. What changed
+
+| Parameter | Before | After | Class before | Class after |
+|---|---:|---:|---|---|
+| `V_lowerPlenum` | 0.0777 m³ | **0.346598 m³** (4.46×) | ASSUMPTION | **REFERENCE** |
+| `V_upperPlenum` | 0.0777 m³ | **0.321113 m³** (4.13×) | ASSUMPTION | **REFERENCE** |
+| `L_lowerPlenum` | 0.30 m | 0.30 m | ASSUMPTION | ASSUMPTION / OPEN |
+| `L_upperPlenum` | 0.30 m | 0.30 m | ASSUMPTION | ASSUMPTION / OPEN |
+
+Conversion with the exact factor 1 ft³ = 0.028316846592 m³:
+12.24 × 0.028316846592 = 0.34659820 → **0.346598 m³**;
+11.34 × 0.028316846592 = 0.32111304 → **0.321113 m³**.
+
+No other active parameter was touched. `L_downcomer`, the three pipe lengths, `V_pumpBowl`,
+`V_hxShell`, `V_lowerPlenum_core`, `V_upperPlenum_core`, the density and the mass flow rate are
+all unchanged — none of them was allowed to move to absorb the change.
+
+### B. What O-17 explicitly does **not** do
+
+- **O-12B stays OPEN.** `V_lowerPlenum_core` (MARS 120-03) and `V_upperPlenum_core`
+  (MARS 190-01) keep 0.003055 m³ with their `LEGACY/OPEN` tag. A whole-plenum total fluid
+  volume and a single MARS control volume inside that plenum are not the same quantity, and
+  the report gives no nodalization. Nothing was divided by three, and nothing was connected to
+  `V_190_01_JeongEq`.
+- **O-14 untouched.** No assertion deleted, no tolerance widened, no benchmark target moved.
+  The three failing asserts are left exactly as they were, and the effect of O-17 on them is
+  reported below rather than engineered away.
+- **The plenum heights stay OPEN.** The source gives fluid volumes, not axial extents. The
+  `L_*Plenum_core` expressions therefore remain a legacy uniform-bore diagnostic, explicitly
+  *not* an independently reconstructed physical MARS-node length; their descriptions now say so.
+- The earlier **~0.2215 m³** lower-plenum figure quoted under O-12B was a secondary SAM
+  porous-medium estimate (1.71 m² at porosity 1.0 over 0.12954 m). It is neither active nor a
+  reference value; O-17 supersedes it with 12.24 ft³ = 0.346598 m³. The O-12B section in
+  `Data/Geometry.mo` now says this in place, so the figure cannot be read as an active value.
+
+### C. Derived quantities — recomputed, not fitted
+
+| Quantity | Before | After |
+|---|---:|---:|
+| `V_core` | 0.538946 m³ | 0.538946 m³ (unchanged) |
+| `V_loop` | 1.045243 m³ | **1.557554 m³** (+49.0 %) |
+| `V_total` | 1.584189 m³ | **2.096500 m³** (+32.3 %) |
+| `tau_core_nominal` | 7.046 s | 7.046 s (unchanged) |
+| `tau_loop_nominal` | 13.666 s | **20.364 s** |
+| `tau_system_nominal` | 20.713 s | **27.411 s** (paper 25.63 s) |
+| `m_fuel_core_model` | 1184 kg | 1184 kg (unchanged) |
+| `m_fuel_loop_model` | 2296 kg | **3421 kg** |
+| `err_m_core` | −26.29 % | −26.29 % (unchanged) |
+| `err_m_loop` | −15.33 % | **+26.17 %** |
+| circulating inventory vs 4318 kg | 3480 kg, −19.41 % | **4605 kg, +6.66 %** |
+| `L_lowerPlenum_core` (diagnostic) | 0.011795 m | 0.002644 m |
+| `L_upperPlenum_core` (diagnostic) | 0.011795 m | 0.002854 m |
+| `V_120_03_JeongEq` as a share of the whole lower plenum | 169 % | 37.8 % |
+| `V_190_01_JeongEq` as a share of the whole upper plenum | 87 % | 21.0 % |
+
+Delayed-neutron transport quantities, computed from the same expressions the library uses
+(paper Eq. 8, `Functions.driftReactivity`):
+
+| Case | Before | After | Paper |
+|---|---:|---:|---:|
+| natural circulation, 1.46 kg/s | 1.5619 pcm | **1.5619 pcm** | 0.9 pcm |
+| natural circulation, 4.45 kg/s | 10.4928 pcm | **10.5004 pcm** | 6.7 pcm |
+| forced circulation at this record's own τ | 269.9 pcm | **287.7 pcm** | 228.4 pcm |
+| forced circulation at the paper's τ (density- and volume-free) | 228.35 pcm | 228.35 pcm | 228.4 pcm |
+
+The natural-circulation figures barely move because at 1.46 and 4.45 kg/s both transit times
+are already long compared with every precursor half-life, so Eq. 8 has saturated.
+
+### D. Assertion status — `EXPECTED_MISMATCH_DURING_PARTIAL_GEOMETRY_BASELINE`
+
+| Model | Assert | Before | After |
+|---|---|---:|---:|
+| `Steady_LoopBalance` | τ_system vs 25.63 ± 0.15 s | 20.713 s FAIL (−4.92 s) | **27.411 s FAIL (+1.78 s)** |
+| `Analytic_DriftReactivity` | nat. circ. 0.9 ± 0.2 / 6.7 ± 0.5 pcm | 1.5619 / 10.4928 FAIL | **1.5619 / 10.5004 FAIL** |
+| `Properties_TransitTime` | implied density ±5 % | +37.2 % FAIL | +37.2 % FAIL (unchanged — depends on `V_channels` only) |
+| `Properties_TransitTime` | active closer than legacy | PASS | PASS (unchanged) |
+| `Analytic_DriftReactivity` | forced drift 228.4 ± 0.5 pcm | PASS | PASS (uses the paper's τ) |
+| `Analytic_DriftReactivity` | `Beta_circulating` 0.0045 ± 1e-4 | PASS | PASS |
+
+No tolerance was modified and no assertion was deleted or downgraded. The τ_system assert is
+closer to its target than before, but that is a by-product of adopting a sourced volume and not
+the reason for adopting it; O-14 remains the place where the three failures are decided.
+
+### E. The substantive result
+
+The old picture was a core 26.3 % short and a loop 15.3 % short, adding to a 19.4 % shortfall.
+The new one is a core **26.3 % short** and a loop **26.2 % long** — nearly equal and opposite —
+with the total 6.7 % long. That is what a control-volume boundary drawn in a different place
+looks like: salt that MARS counts inside its core-boundary nodes and this record counts as
+plenum. It is the second of the two readings recorded under O-12, and O-17 is the evidence that
+the first one (plena too small) was real and is now spent.
+
+Nothing was moved to make the two sides meet. Settling the remainder needs the MARS node
+volumes — O-12B, still OPEN.
+
+### F. Scope
+
+Modified: `Data/Geometry.mo`, `docs/PHASE_LOG.md`.
+
+Not modified: fuel-salt property correlations, pump model, heat exchanger model, kinetics,
+experiment inputs, channel geometry, downcomer geometry, pipe lengths, and the O-14 assertion
+policy. `Components/ReactorCore.mo` carries `V_lowerPlenum = V_upperPlenum = 0.0777` as
+*component defaults*; `Systems/PrimarySystem.mo` overrides both from `Data.Geometry`, so no
+active model path reads them. They are out of scope for this commit and are recorded here as a
+follow-up.
+
+Two verification documentation tables still quote the pre-O-17 loop figures
+(`Properties_TransitTime.mo` line 183: 13.666 s / 20.713 s / 269.9 pcm;
+`Analytic_DriftReactivity.mo` line 120: 1.56 / 10.49 pcm). Prose only — no assertion, no active
+value — and out of scope here because §8 puts the verification models off limits. Follow-up.
+
+### Open items
+
+- **O-17 closed** for the two whole-plenum volumes; the two plenum **heights** remain OPEN.
+- **O-12B** open, unchanged, and now the only route to the remaining ±26 % split.
+- **O-14** untouched and still the sharpest item.
+- **O-15**, **O-16** unchanged.
+
+### Verification status
+
+`BLOCKED_NOT_RUN` — no Modelica toolchain, no MSL/TRANSFORM installation. `checkModel` was not
+run and no verification model was simulated. Every number above is a hand calculation performed
+outside Modelica from the expressions now in the record. `Data/Geometry.mo` was checked for
+Modelica string, comment and HTML-tag balance, and the diff was checked to confirm that the two
+plenum volumes are the only active parameters that changed.
