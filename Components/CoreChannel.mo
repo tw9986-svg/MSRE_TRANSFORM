@@ -78,7 +78,7 @@ model CoreChannel
       K_inlet else 0) + (if i == nFM and not exposeState_b then K_exit else 0) for i in 1:nFM}
     "Form loss coefficient of each flow segment";
 
-  replaceable model HeatTransfer = MSRE.ClosureRelations.Nus_MoltenSalt constrainedby
+  replaceable model HeatTransfer = MSRE.ClosureRelations.Nus_Core constrainedby
     TRANSFORM.Fluid.ClosureRelations.HeatTransfer.Models.DistributedPipe_1D_MultiTransferSurface.PartialHeatTransfer_setT
     "Fuel salt to graphite heat transfer" annotation (choicesAllMatching=true);
 

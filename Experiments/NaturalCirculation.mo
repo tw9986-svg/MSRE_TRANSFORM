@@ -173,10 +173,14 @@ a secondary role.</p>
 shell-side heat transfer coefficient at low flow is the decisive uncertainty. In this model that
 uncertainty was concentrated in <code>msre.geometry.Nu_floor_shell</code> and
 <code>msre.geometry.f_shellHT</code>. <b>Both are now LEGACY/DEPRECATED and connected to
-nothing:</b> the heat transfer closure is Gnielinski on every surface, with no calibration
-coefficient. That also means this experiment currently has no valid core heat transfer at all,
-because the fuel channels are laminar and Gnielinski returns a negative Nusselt number there -
-see <a href=\"modelica://MSRE.ClosureRelations.Nus_MoltenSalt\">Nus_MoltenSalt</a> and open
-item O-19</p>
+nothing:</b> the heat exchanger uses plain Gnielinski
+(<a href=\"modelica://MSRE.ClosureRelations.Nus_MoltenSalt\">Nus_MoltenSalt</a>) and the core
+channels, which are laminar even at rated flow, use
+<a href=\"modelica://MSRE.ClosureRelations.Nus_Core\">Nus_Core</a> - a generic laminar
+constant below Re 2300 blending into Gnielinski above 3000. Neither carries a multiplier or a
+Nusselt floor, so the shell-side coefficient at rated flow is about 1812 W/(m2.K) against the
+22450 the calibrated closure gave, and this experiment should be expected to behave
+differently until the shell-side geometry (O-16) and the duct-shape laminar correction
+(O-19 residual) are settled</p>
 </html>"));
 end NaturalCirculation;

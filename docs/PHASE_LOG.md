@@ -1372,3 +1372,165 @@ calculation outside Modelica. Assertion states, with **no tolerance modified**:
 | `Analytic_DriftReactivity` Beta_circulating | 0.004497 | 0.0045 ± 1e-4 | PASS |
 | `Analytic_DriftReactivity` nat. circ. low | 0.818 pcm | 0.9 ± 0.2 | **PASS** (was FAIL) |
 | `Analytic_DriftReactivity` nat. circ. high | 6.199 pcm | 6.7 ± 0.5 | FAIL by 0.0009 pcm |
+
+---
+
+## Phase 11 — O-19: core laminar heat-transfer closure
+
+### 1. Re re-verified from the code's own definitions
+
+Nothing was adjusted to move the Reynolds number. Every input below is read from
+`Data/Geometry.mo` and `Media/FuelSalt`.
+
+```
+A_channel   = w*h - (4-pi)*r^2            = 2.875244e-4 m2
+perimeter   = 2(w+h) - 4r(2-pi/2)         = 0.072559 m
+Dh_channel  = 4*A/P                       = 0.015851 m
+A_flow_tot  = 1140 * A_channel            = 0.327778 m2
+rho(908 K)  = 2553.3 - 0.562*(T-273.15)   = 2196.5143 kg/m3
+mu(908 K)   = 8.4e-5*exp(4340/T)          = 1.000212e-2 Pa.s
+v  = m_flow/(rho*A_flow_tot)              = 0.233343 m/s
+Re = rho*v*Dh/mu = m_flow*Dh/(A_tot*mu)   = 812.24
+Pr = cp*mu/k                              = 20.101
+```
+
+**VERIFIED.** `Dh = 0.015851 m` and `v = 0.2333 m/s` both follow from the geometry as defined;
+the density cancels out of `Re` entirely. Reaching Re = 2300 would need 476 kg/s (2.83× rated)
+or a viscosity 2.83× lower.
+
+Incidental finding: the corner radius is exactly half the channel depth (0.00508 = 0.01016/2),
+so the channel is an **obround/stadium**, not a rounded rectangle — the two short ends are
+semicircles. The area and perimeter formulas already in the record are exact for that shape.
+
+### 2. Power deposition path — traced
+
+```
+Nuclear/PointKinetics_DNPtransport -> kinetics.Qs
+  -> PrimarySystem.mo:131   core.Qs_core = kinetics.Qs
+    -> ReactorCore.mo:204   Qs_channels[r,k] = Qs_core[...]*(1 - f_graphiteHeating)
+      -> ReactorCore.mo:165 channels[r].Q_gens = Qs_channels[r,:]
+        -> CoreChannel.mo:108 pipe.InternalHeatGen = GenericHeatGeneration(Q_gens=Q_gens)
+           == VOLUMETRIC HEAT SOURCE in each fuel-salt control volume
+    -> ReactorCore.mo:205   Qs_channels_graphite = Qs_core[...]*f_graphiteHeating
+      -> CoreChannel.mo:127 graphite.InternalHeatModel = GenericHeatGeneration
+  plenum core nodes: ReactorCore.mo:216/221 Qs_LP, Qs_UP -> also volumetric
+```
+
+`f_graphiteHeating = 0` by default (`PrimarySystem.mo:42`, `ReactorCore.mo:68`), so **100 % of
+the fission power enters the fuel salt as a volumetric source and none of it passes through the
+convective closure.** Axial and radial shaping already exists via `SF_core` from
+`Functions.corePowerShape`, with `sum(SF_core) = 1` — the structure section 7 of the request
+asks for is already present and was not changed.
+
+### 3. Blocker re-adjudicated — **Case A**
+
+`Q_core`, core outlet temperature, core ΔT and the primary energy balance are
+`Q = m_flow*cp*ΔT` and do **not** depend on the core Nusselt number. The earlier claim that
+O-19 blocked all thermal results was **wrong** and is retracted. O-19 is re-scoped to:
+
+> Core wall/graphite-to-fuel heat-transfer closure undetermined.
+
+It sets the fuel-to-graphite temperature difference and hence the graphite temperature, which
+matters for graphite thermal feedback and for the paper's `f_graphiteHeating` sensitivity — not
+for bulk temperatures. A negative `h` was still not acceptable: with `q = h(T_w - T_f)` and
+`h < 0` the graphite coupling becomes anti-restoring and the graphite temperature diverges.
+
+### 4-6. Closure split
+
+| Component | Closure | Model |
+|---|---|---|
+| core fuel channels | laminar / blend / Gnielinski | **`ClosureRelations.Nus_Core`** (new) |
+| HX shell | Gnielinski | `ClosureRelations.Nus_MoltenSalt` |
+| HX tube | Gnielinski | `ClosureRelations.Nus_MoltenSalt` |
+
+```
+Re < 2300          Nu = Nu_laminar (4.36)
+2300 <= Re < 3000  Nu = (1-w)*Nu_laminar + w*Nu_Gnielinski,  w = x^2(3-2x), x = (Re-2300)/700
+Re >= 3000         Nu = Nu_Gnielinski
+```
+
+The smoothstep weight and its first derivative vanish at both ends, so Nu is C¹ across the
+window. **No multiplier, enhancement factor or Nusselt floor was added anywhere.**
+
+`Nu_laminar = 4.36` (constant heat flux) rather than 3.66 (constant wall temperature), on the
+evidence of the model's own boundary condition: the graphite annulus in `CoreChannel` is
+adiabatic on its outer radius and both ends, and its only source is the `f_graphiteHeating`
+share of fission power, so whatever it generates must leave through the salt interface — the
+wall imposes a flux, not a temperature. Tagged:
+
+```
+ASSUMPTION / GENERIC LAMINAR CLOSURE
+Used only as an interim closure for the 1-D TRANSFORM benchmark model.
+Not an experimentally validated MSRE-specific heat-transfer correlation.
+```
+
+Deferred, and named as such in the model: obround-duct laminar correlation, MSRE-specific
+treatment, Poppendiek effect and graphite–fuel coupling.
+
+### 9. Comparison
+
+| Parameter | Before | After | Reason |
+|---|---:|---:|---|
+| Core Re | 812 | 812 | unchanged — nothing was adjusted |
+| Core Nu | **−3.99** | **4.36** | laminar branch replaces out-of-range Gnielinski |
+| Core h [W/m²K] | **−251.8** | **275.1** | `Nu*k/Dh`, k = 1.0, Dh = 0.015851 |
+| HX shell Re | 8637 | 8637 | unchanged |
+| HX shell Nu | 101.57 | 101.57 | unchanged |
+| HX shell h | 1811.7 | 1811.7 | unchanged |
+| HX tube Re | 10510 | 10510 | unchanged |
+| HX tube Nu | 112.23 | 112.23 | unchanged |
+| HX tube h | 11684.3 | 11684.3 | unchanged |
+
+Steady-state bulk energy balance — **hand calculation, not simulation**, and independent of
+every Nusselt number above:
+
+```
+dT_core = Q_core/(m_flow*cp),  m_flow = 168 kg/s,  cp = 2009.66 J/(kg.K)
+  Q = 10 MWth  -> dT = 29.62 K
+  Q =  8 MWth  -> dT = 23.70 K
+  reported dT = 28 K -> Q = 9.45 MWth
+```
+
+`Q_HX`, `Q_core − Q_HX` and the residual fraction need a solved secondary side and are
+`BLOCKED_NOT_RUN`.
+
+### O-19 STATUS
+
+```
+O-19 STATUS:
+Core Re calculation:
+  VERIFIED
+Core flow regime:
+  LAMINAR  (Re = 812 at rated flow; laminar under every simulated condition)
+Core power deposition method:
+  VOLUMETRIC HEAT SOURCE
+  (CoreChannel.pipe.InternalHeatGen; f_graphiteHeating = 0 sends 100 % to the salt)
+Is Gnielinski required for core bulk dT?:
+  NO
+Core thermal closure:
+  Nus_Core - generic laminar Nu = 4.36 below Re 2300,
+  smoothstep blend to Gnielinski over 2300-3000, Gnielinski above 3000
+HX thermal closure:
+  Gnielinski (Nus_MoltenSalt), shell and tube
+O-19 classification:
+  PARTIALLY CLOSED
+Remaining limitation:
+  The laminar constant is a generic circular-duct value, not an MSRE obround-channel
+  correlation, and no entrance-length, Poppendiek or graphite-coupling effect is
+  represented. It sets the graphite temperature, not the bulk fuel temperature, so
+  it is not on the path to Q_core or core dT.
+```
+
+### Not modified
+
+168 kg/s nominal flow, fuel-salt viscosity and density, channel count, channel area, hydraulic
+diameter, core power, HX hydraulic diameter (`Dh_shell`, still O-16), `f_area_hx`, every pump
+parameter, the kinetics and precursor data, and every assertion tolerance. No transit-time or
+inventory value changed, so the assertion states of Phase 10 stand unchanged.
+
+### Verification status
+
+`BLOCKED_NOT_RUN` — no Modelica toolchain, no MSL/TRANSFORM. `checkModel`, `translate` and the
+steady-state run were **not** performed. Every number in this entry is a hand calculation
+outside Modelica; none is a simulation result. Edited files were checked for Modelica string
+and comment balance.
