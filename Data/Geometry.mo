@@ -308,7 +308,8 @@ record Geometry "MSRE nodalization and geometry (Modelica counterpart of the MAR
      Elevations (closed loop: the sum of all dheights is zero)
      ------------------------------------------------------------------ */
   parameter SI.Length dz_lowerPlenum=0.30 "Elevation rise across the lower plenum";
-  parameter SI.Length dz_channels=1.626 "Elevation rise across the fuel channels";
+  final parameter SI.Length dz_channels=H_channels
+    "DERIVED | elevation rise across the fuel channels, which is their active height (was 1.626 m, 0.4 mm adrift of H_channels; O-15)";
   parameter SI.Length dz_upperPlenum=0.30 "Elevation rise across the upper plenum";
   parameter SI.Length dz_outletPipe=2.20 "Elevation rise of the reactor outlet riser";
   parameter SI.Length dz_pumpBowl=0.00 "Elevation rise across the pump bowl";

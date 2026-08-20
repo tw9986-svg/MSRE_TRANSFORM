@@ -60,5 +60,28 @@ them. Changing this factor reproduces the axial-profile sensitivity of paper Fig
 
 <p>The normalized flux needed by paper Eq. 4 follows from the returned shape as
 <code>phi_i = SF_i*sum(V)/V_i</code>, which satisfies <code>sum(phi_i*V_i) = sum(V_i)</code>.</p>
+
+<h4>Open item O-20: the plenum nodes now carry a large share of the source</h4>
+<p>The two plenum core nodes enter the sum weighted by their <b>volume</b>, with the same
+cosine amplitude as the channel region. That was harmless while they held 3.055 litres each.
+Since they became equal-volume thirds of the referenced plenum totals they hold 0.1155 and
+0.1070 m3, 65 times a channel cell, and the shape they receive changes accordingly:</p>
+<table border=\"1\">
+<tr><th></th><th>plenum nodes at 3.055 litres</th><th>plenum nodes at one third of a plenum</th></tr>
+<tr><td><code>SF</code> of the lower node</td><td>0.00201</td><td><b>0.07668</b></td></tr>
+<tr><td><code>SF</code> of the upper node</td><td>0.00201</td><td><b>0.07104</b></td></tr>
+<tr><td>both together</td><td>0.40 % of core fission</td><td><b>14.77 %</b></td></tr>
+<tr><td>channel axial peak/average</td><td>1.348</td><td>1.265</td></tr>
+</table>
+<p>Nearly a seventh of the fission source is now placed in salt that has <b>no graphite around
+it</b>, which is difficult to defend: the plena are unmoderated, so the thermal flux there
+should be lower than in the channels rather than comparable, and the paper describes the two
+nodes as thin slices at the core boundary. This function was not changed - it still applies
+one cosine over the whole core height and weights by volume - because correcting it means
+choosing a physical treatment (excluding the plena from the moderated shape, weighting them by
+a moderator-presence factor, or taking the shape from a transport calculation), and that is a
+modelling decision rather than a cleanup. It is recorded as O-20 together with O-12B, the
+unresolved physical volume of the two nodes, which is the same question seen from the other
+side.</p>
 </html>"));
 end corePowerShape;

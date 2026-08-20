@@ -1534,3 +1534,68 @@ inventory value changed, so the assertion states of Phase 10 stand unchanged.
 steady-state run were **not** performed. Every number in this entry is a hand calculation
 outside Modelica; none is a simulation result. Edited files were checked for Modelica string
 and comment balance.
+
+---
+
+## Phase 12 — O-15 closed, and a derived consequence of the plenum subdivision (O-20)
+
+### O-15 — closed
+
+`dz_channels` was a standalone 1.626 m while `H_channels` is 1.6256 m, a 0.4 mm inconsistency
+left over from the pre-hardware geometry. It is now `final parameter dz_channels = H_channels`,
+which is what `Components/ReactorCore.mo` already did by default. The elevation set still closes
+exactly, because `dz_downcomer` is defined as minus the sum of the others; it absorbs the 0.4 mm.
+
+### O-20 (new) — the plenum core nodes now carry 14.8 % of the fission source
+
+`Functions/corePowerShape` applies one cosine over the whole core height and weights each cell
+by its **volume**. That was harmless while the two plenum core nodes held 3.055 litres each. At
+one third of the referenced plenum totals they hold 0.1155 and 0.1070 m³ — **65 times a channel
+cell** — and the source shape moves with them:
+
+| | nodes at 3.055 L | nodes at one third of a plenum |
+|---|---:|---:|
+| `SF` lower plenum node | 0.00201 | **0.07668** |
+| `SF` upper plenum node | 0.00201 | **0.07104** |
+| both together | **0.40 %** of core fission | **14.77 %** |
+| `phi` at the plenum nodes | 0.355 | 0.501 |
+| channel axial peak/average | 1.348 | 1.265 |
+| plenum cell / channel cell volume | 1.7× | 65.0× |
+| `L_core` seen by the cosine | 1.6311 m | 1.8256 m |
+
+`sum(SF) = 1` and `sum(phi·V)/sum(V) = 1` still hold, so the normalisation is intact; what
+changed is where the source sits.
+
+**Nearly a seventh of the fission source is now placed in salt with no graphite around it.**
+The plena are unmoderated, so the thermal flux there should be *lower* than in the channels
+rather than comparable, and Jeong describes 120-03 and 190-01 as thin slices at the core
+boundary — 0.0635 m for 190-01, against the 0.1 m the equal-volume assumption gives.
+
+This is a **consequence of the equal-volume subdivision, surfaced rather than fixed.**
+`corePowerShape` was not changed: correcting it means choosing a physical treatment — exclude
+the plena from the moderated shape, weight them by a moderator-presence factor, or take the
+shape from a transport calculation — and that is a modelling decision, not a cleanup. It also
+feeds the kinetics through `phis_core`, so it moves the precursor weighting and the drift
+results, not only the thermal field.
+
+O-20 and O-12B are the same question from two sides: what those two nodes physically are.
+
+### Open items
+
+- **O-20 (new)** fission-source treatment of the unmoderated plenum core nodes — needs a decision
+- **O-12B** physical volume of MARS 120-03 / 190-01 (blocked on source access)
+- **O-19** residual: obround-duct laminar Nusselt number, entrance length, Poppendiek, graphite coupling
+- **O-16** HX shell-side hydraulic geometry — the calibration coupling that blocked it is now
+  gone, since `f_shellHT` and `Nu_floor_shell` are disconnected, so this is unblocked whenever
+  a verified shell geometry is available
+- **O-14** the failing assertions
+- **O-17** unsourced loop dimensions
+- **O-15 closed**
+
+### Verification status
+
+`BLOCKED_NOT_RUN` — no Modelica toolchain. The shape figures above were computed outside
+Modelica by re-implementing `corePowerShape` exactly as written, with the record's own
+`f_radial`, `A_channel`, `H_channels` and `f_axialExtrapolation = 1.2`. No assertion tolerance
+was touched and no assertion changed state: `dz_channels` moves only `dz_downcomer`, and the
+shape change affects the kinetics rather than any asserted transit time.
