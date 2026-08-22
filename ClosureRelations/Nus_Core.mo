@@ -67,6 +67,54 @@ enhancement factor and no Nusselt floor</b> anywhere in this model: the laminar 
 constant because fully developed laminar duct flow has a constant Nusselt number, not because
 a value was needed to make a result come out.</p>
 
+<h4>Correlation provenance and range of applicability</h4>
+<table border=\"1\">
+<tr><th></th><th>Laminar branch</th><th>Turbulent branch</th></tr>
+<tr><td>expression</td><td><code>Nu = 4.36</code>, constant</td>
+    <td>Gnielinski, with the Filonenko/Petukhov friction factor</td></tr>
+<tr><td>source</td>
+    <td>the classical analytic solution for fully developed laminar flow in a circular duct at
+        uniform wall heat flux, <code>Nu = 48/11 = 4.364</code>; the uniform-wall-temperature
+        counterpart is 3.657. Standard textbook result, not fitted here</td>
+    <td>V. Gnielinski, Int. Chem. Eng. 16 (1976) 359</td></tr>
+<tr><td>stated validity</td><td><code>Re &lt; 2300</code>, i.e. laminar duct flow</td>
+    <td><code>3000 &lt; Re &lt; 5e6</code>, <code>0.5 &lt; Pr &lt; 2000</code></td></tr>
+<tr><td>applied over</td><td><code>Re &lt; 2300</code></td><td><code>Re &gt;= 3000</code></td></tr>
+<tr><td>free coefficients</td><td><b>none</b></td><td><b>none</b></td></tr>
+</table>
+<p>The MSRE core sits at <code>Re = 812</code>, <code>Pr = 20.1</code>, so only the laminar
+branch is ever exercised there. The Gnielinski branch is retained so that the model stays
+usable if a future case runs the core turbulent, and so that core and heat exchanger reduce to
+the same expression where both are valid.</p>
+
+<h4>Fully developed versus developing flow - the assumption that matters most</h4>
+<p><code>Nu = 4.36</code> is the <b>fully developed</b> value. At MSRE core conditions the flow
+is fully developed hydrodynamically but <b>not</b> thermally:</p>
+<table border=\"1\">
+<tr><th>Quantity</th><th>Value</th><th>Against the 1.6256 m channel</th></tr>
+<tr><td>hydrodynamic entry length <code>0.05*Re*Dh</code></td><td>0.644 m</td>
+    <td>channel is 2.5 entry lengths - hydrodynamically developed over most of its length</td></tr>
+<tr><td>thermal entry length <code>0.05*Re*Pr*Dh</code></td><td><b>12.94 m</b></td>
+    <td>channel is <b>12.6 %</b> of it - thermally developing over its <b>entire</b> length</td></tr>
+<tr><td>Graetz number <code>(Dh/L)*Re*Pr</code></td><td>159</td>
+    <td>entrance-dominated</td></tr>
+</table>
+<p><b>The fully developed constant is therefore a lower bound on the true Nusselt number, and
+the error has a known sign:</b> a thermally developing duct has a higher Nusselt number than
+the developed value, rising without limit towards the inlet. Using 4.36 <b>under</b>estimates
+the fuel-to-graphite heat transfer coefficient. That is the conservative direction for a
+closure whose only present job is to set the graphite temperature, and it is preferred here to
+introducing a Graetz or Hausen entrance correlation whose constants would need justifying
+against a duct shape this model does not yet represent. Correcting it is part of the deferred
+work listed below.</p>
+
+<h4>Transitional region</h4>
+<p>Neither branch is valid over <code>2300 &lt; Re &lt; 3000</code> and no transitional
+correlation is claimed. The smoothstep blend is a <b>numerical interpolation</b> between the
+two branches, chosen so that <code>Nu</code> and <code>dNu/dRe</code> are continuous and the
+solver sees no event, not a physical model of transition. Any result that spends time in that
+window should be treated as unresolved.</p>
+
 <h4>Provenance of the laminar constant</h4>
 <pre>
 ASSUMPTION / GENERIC LAMINAR CLOSURE
@@ -92,6 +140,7 @@ deliberately deferred:</p>
 <table border=\"1\">
 <tr><th>Stage</th><th>Treatment</th></tr>
 <tr><td>current implementation</td><td>generic laminar closure, this model</td></tr>
+<tr><td>future refinement</td><td>thermal entrance-region correction (Graetz/Hausen); the channel is only 12.6 % of the thermal entry length</td></tr>
 <tr><td>future refinement</td><td>geometry-dependent rectangular/obround laminar correlation</td></tr>
 <tr><td>future refinement</td><td>ORNL/MSRE-specific heat-transfer treatment</td></tr>
 <tr><td>future refinement</td><td>Poppendiek effect and graphite-fuel coupling</td></tr>

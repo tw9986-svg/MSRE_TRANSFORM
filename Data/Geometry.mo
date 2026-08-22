@@ -5,8 +5,14 @@ record Geometry "MSRE nodalization and geometry (Modelica counterpart of the MAR
   /* ------------------------------------------------------------------
      Nodalization
      ------------------------------------------------------------------ */
-  parameter Integer nRings=15 "# of concentric radial rings the 1140 fuel channels are grouped into";
-  parameter Integer nAxial=20 "# of axial nodes per fuel channel";
+  /* NODALIZATION, not physical geometry. These describe how the hardware is discretized and
+     are the 2-D default; the 1-D benchmark uses MSRE.Data.Nodalization.Core1D instead. They
+     remain here because Systems.PrimarySystem and Components.ReactorCore still read them from
+     this record. Moving the system model onto a nodalization record is open item O-21. */
+  parameter Integer nRings=15
+    "NODALIZATION (2-D default) | # of concentric radial rings the 1140 fuel channels are grouped into; see Data.Nodalization";
+  parameter Integer nAxial=20
+    "NODALIZATION | # of axial nodes per fuel channel; the same in 1-D and 2-D";
   parameter Integer nLP=3 "# of axial nodes in the lower plenum";
   parameter Integer nUP=3 "# of axial nodes in the upper plenum";
   parameter Integer nDC=10 "# of nodes in the downcomer";
@@ -56,7 +62,7 @@ record Geometry "MSRE nodalization and geometry (Modelica counterpart of the MAR
   parameter Real nChannels_total=1140
     "PHYSICAL | ORNL/INL hardware, and confirmed by Jeong et al. (2026): total # of vertical fuel channels";
   parameter Real nChannels[nRings]=fill(nChannels_total/nRings, nRings)
-    "# of channels per radial ring (equal-area rings)";
+    "NODALIZATION (2-D default) | # of channels per radial ring (equal-area rings)";
   parameter SI.Length H_channels=1.6256
     "PHYSICAL | ORNL/INL hardware: active height of the fuel channels (64 in)";
   parameter SI.Length w_channel=0.03048
@@ -102,7 +108,7 @@ record Geometry "MSRE nodalization and geometry (Modelica counterpart of the MAR
      used here (radial peak-to-average 1.61). Replace with the Serpent values if available. */
   parameter Real f_radial[nRings]={1.6067,1.5076,1.4115,1.3184,1.2283,1.1410,1.0565,0.9748,
       0.8958,0.8194,0.7456,0.6743,0.6055,0.5392,0.4751}
-    "Radial power peaking factor of each ring (channel-weighted average = 1)";
+    "ASSUMPTION | radial peaking factor of each ring, channel-weighted average 1. A J0 shape with a 25 % reflector saving, NOT the paper's Serpent tabulation, which is not public";
 
   /* Axial power/flux profile: cosine, as in paper Fig. 3. */
   parameter Real f_axialExtrapolation=1.2

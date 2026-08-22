@@ -1599,3 +1599,140 @@ Modelica by re-implementing `corePowerShape` exactly as written, with the record
 `f_radial`, `A_channel`, `H_channels` and `f_axialExtrapolation = 1.2`. No assertion tolerance
 was touched and no assertion changed state: `dz_channels` moves only `dz_downcomer`, and the
 shape change affects the kinetics rather than any asserted transit time.
+
+---
+
+## Phase 13 — COMMON baseline consolidation before the benchmark branches
+
+**Scope:** the shared layer only. No benchmark branch was touched, no geometry, property,
+inventory or transit-time value moved, no assertion tolerance changed.
+
+### 1-2. The two unmerged commits, reviewed and rebased onto `main`
+
+`820fce9` and `5e18127` were sitting on a branch that `main` had left behind. Both cherry-pick
+cleanly onto `dcc3b80`. Reviewed against the acceptance conditions:
+
+| Condition | Status |
+|---|---|
+| no arbitrary correlation invented to make Nu positive | met — the laminar branch is the classical `Nu = 48/11` analytic constant, no free coefficient |
+| correlation source stated | added — analytic circular-duct solution (4.364 uniform flux, 3.657 uniform temperature); Gnielinski, Int. Chem. Eng. 16 (1976) 359 |
+| Reynolds range stated | added — laminar `Re < 2300`, Gnielinski `3000 < Re < 5e6`, `0.5 < Pr < 2000` |
+| developed vs developing stated | **added, and it is the significant one — see below** |
+| transitional handling stated | added — the blend is declared a *numerical interpolation*, not a transition model |
+| HX kept on the turbulent correlation | met — `Nus_MoltenSalt` unchanged for both HX sides |
+| 14.77 % kept as diagnostic only | met — quoted as error quantification, used nowhere as a factor |
+
+**Thermal entrance length.** `Nu = 4.36` is the *fully developed* value, and the MSRE core is
+not thermally developed anywhere along its length:
+
+| Quantity | Value | vs the 1.6256 m channel |
+|---|---:|---|
+| hydrodynamic entry length `0.05·Re·Dh` | 0.644 m | 2.5 entry lengths — developed |
+| thermal entry length `0.05·Re·Pr·Dh` | **12.94 m** | channel is **12.6 %** of it — developing throughout |
+| Graetz number `(Dh/L)·Re·Pr` | 159 | entrance-dominated |
+
+So 4.36 is a **lower bound with a known sign**: a developing duct has a higher Nusselt number.
+It underestimates the fuel-to-graphite coefficient, which is the conservative direction for a
+closure whose only present job is the graphite temperature. Adding a Graetz/Hausen entrance
+correction is deferred rather than guessed at, and is now listed in the model.
+
+**Defect found and fixed while rebasing:** `820fce9` added `ClosureRelations/Nus_Core.mo` but
+never added it to `ClosureRelations/package.order`, so the class would not have loaded.
+
+### 3-4. O-20 resolved — fission source domain ≠ DNP domain
+
+```
+DNP inventory / transport domain : channel cells + both plenum core nodes
+fission source domain            : active fuel channel cells only
+```
+
+`corePowerShape` gains `plenumFissionSource`, default **false**. The two plenum core nodes get
+`SF = 0`, so `Qs = Q_fission·SF = 0` and `mC_sources = β/Λ·N·SF = 0` there, while
+`mC_gens = mC_sources − λ·mC` keeps advection and decay running in them.
+
+```
+PLENUM_FISSION_SOURCE = 0
+ASSUMPTION
+```
+
+Not a measurement: fission in the plena is not exactly zero, which is why Jeong counts 120-03
+and 190-01 as core at all. No published statement of their source fraction exists, and between
+a volume-weighted 14.8 % and zero, zero is the less unphysical. `plenumFissionSource = true`
+restores the old treatment for sensitivity.
+
+**Verification of the change (independent calculation, not simulation):**
+
+| | volume-weighted | no plenum source |
+|---|---:|---:|
+| `sum(SF)` | 1.0000000000 | **1.0000000000** |
+| `sum(φ·V)/sum(V)` — the kinetics normalisation | 1.0000000000 | **1.0000000000** |
+| `SF` plenum lower / upper | 0.07668 / 0.07104 | **0 / 0** |
+| `SF` channel max / min | 0.005776 / 0.000765 | 0.006777 / 0.000897 |
+| `φ` channel max | 2.4567 | 2.8825 |
+| ring-1 axial peak/average | 1.2654 | 1.2654 |
+| fission power in the plena at 8 MW | 1181.8 kW | **0 kW** |
+
+Both normalisations are exactly preserved. `Beta_eff_inst` divides by
+`sum(φ_adj·φ·V) = sum(SF)·sum(V) = sum(V)`, which is unchanged, while its numerator
+`sum(φ_adj·mC)` still contains the plenum precursor inventory — so the DNP domain keeps the
+plena, as intended. `PrimarySystem.T_fuel_effective`, being flux-weighted, now excludes the
+plena; that follows from there being no fission there and is the physically consistent result.
+
+### 5. Physical geometry separated from spatial nodalization
+
+New `Data/Nodalization/` with `Core1D` (1 group × 20, `f_radial = {1.0}`) and `Core2D`
+(15 × 20, the existing profile). Both take `Data.Geometry` as a component and restate **no**
+physical quantity — channel count, `f_axialExtrapolation` and everything else are read from it,
+so a 1-D and a 2-D run can only differ in spatial representation.
+
+`f_radial` is tagged **ASSUMPTION** in both places: it is a J0 shape with 25 % reflector saving,
+**not** the paper's Serpent tabulation, which is not public. `Core2D` also records that 15 rings
+with identical geometry and zero form losses is a radial *discretization*, not yet a radial flow
+*model*.
+
+`Data.Geometry` keeps its own nodalization fields, now tagged `NODALIZATION (2-D default)`,
+because `PrimarySystem` and `ReactorCore` still read them from there. Removing them and having
+the system model take a nodalization record is **O-21**, deliberately left out of this commit.
+
+### 7. Regression audit
+
+Unchanged, verified by independent calculation: `V_core` 0.755406 m³, `V_loop` 1.341094 m³,
+τ_core 9.877 s, τ_loop 17.534 s, τ_system 27.411 s, every fuel-salt and coolant property, all
+pump parameters, all HX parameters, all precursor data, and every assertion tolerance.
+
+Changed by design: the core heat-transfer closure (`Nu −3.99 → 4.36`, `h −251.8 → 275.1`
+W/m²K), the fission source distribution above, `dz_channels` (0.4 mm, into `dz_downcomer`).
+
+`CoreTH_Baseline` is unaffected by all of it: it uses `use_HeatTransfer = false` and supplies
+its own uniform `Q_gens`, so it touches neither the closure nor `corePowerShape`.
+
+### Status
+
+| Item | Status |
+|---|---|
+| `Nus_Core` on the COMMON baseline, provenance complete | **PASS** (code review) |
+| `package.order` defect fixed | **PASS** |
+| O-20 source domain, normalisations preserved | **PASS** (independent calculation) |
+| `PLENUM_FISSION_SOURCE = 0` | **ASSUMPTION** |
+| `f_radial` 15-ring profile | **ASSUMPTION** (Serpent tabulation not public) |
+| Geometry/Nodalization separated | **PASS**, with **O-21** open |
+| Thermal entrance-region treatment | **OPEN** |
+| Existing three failing assertions | **EXPECTED_MISMATCH**, untouched |
+| Any Modelica run | **BLOCKED_NOT_RUN** |
+
+### Open items
+
+- **O-21 (new)** move `PrimarySystem`/`ReactorCore` onto a nodalization record and delete the
+  duplicated fields from `Data.Geometry`
+- **O-19 residual** thermal entrance region, obround duct shape, Poppendiek, graphite coupling
+- **O-12B** physical volume of MARS 120-03 / 190-01 — same question as O-20 from the other side
+- **O-14** the three failing assertions
+- **O-16** HX shell geometry — unblocked, awaiting a verified value
+- **O-17** unsourced loop dimensions
+
+### Verification status
+
+`BLOCKED_NOT_RUN` — no Modelica toolchain, no MSL/TRANSFORM. `checkModel`, translation and any
+simulation were **not** performed. Every number above is an independent calculation outside
+Modelica, obtained by re-implementing the model's own expressions. Edited files were checked for
+Modelica string and comment balance.
