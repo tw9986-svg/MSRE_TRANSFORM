@@ -116,6 +116,38 @@ model SaltPipe
     "# of precursors of each group in each node";
   SI.Volume Vs[nV]=pipe.geometry.Vs "Fluid volume of each node";
   SI.Temperature Ts[nV]=pipe.mediums.T "Temperature of each node";
+  SI.Density ds[nV]=pipe.mediums.d "Fuel salt density of each node";
+
+  /* ---------------- Momentum-balance decomposition (diagnostic) ----------------
+     Sign convention: every dp_* below is a DROP from port_a to port_b, so a positive value
+     means the pressure falls in the direction of nominal flow.
+
+     dp_gravity_local is the primary static term and uses the LOCAL density of each node, which
+     is what matters as soon as the fluid is heated. dp_gravity_bulk is a cross-check only.
+     dp_acceleration is the momentum-flux change of a constant-area duct, G^2*(1/d_out-1/d_in),
+     computed here independently of the TRANSFORM flow model.
+
+     dp_nonstatic is deliberately NOT called a friction or irreversible loss: it is whatever is
+     left after the static head, and it still contains the acceleration term, the wall friction
+     and any form loss from Ks. dp_residual isolates the friction-plus-form part, but only as a
+     remainder - it is not read from the TRANSFORM pressure-loss model, whose internal split
+     could not be inspected (no TRANSFORM source is available in the environment this was
+     written in). Treat dp_residual as "friction + form + whatever else the flow model does",
+     not as a verified friction term. */
+  SI.Pressure dp_total=port_a.p - port_b.p
+    "Total pressure drop from port_a to port_b";
+  SI.Pressure dp_gravity_local=sum({ds[i]*Modelica.Constants.g_n*dheights[i] for i in 1:nV})
+    "PRIMARY static term: sum over nodes of the local density times the local elevation rise";
+  SI.Density d_bulk=sum(ds)/nV "Node-average density";
+  SI.Pressure dp_gravity_bulk=d_bulk*Modelica.Constants.g_n*dheight
+    "CROSS-CHECK ONLY: the same static term formed with a single average density";
+  SI.Pressure dp_nonstatic=dp_total - dp_gravity_local
+    "Everything that is not static head. NOT a friction loss: still contains acceleration, friction and form";
+  Real G(unit="kg/(m2.s)")=port_a.m_flow/crossArea "Mass flux";
+  SI.Pressure dp_acceleration=G^2*(1/ds[nV] - 1/ds[1])
+    "Momentum-flux change of a constant-area duct, computed independently of the flow model";
+  SI.Pressure dp_residual=dp_nonstatic - dp_acceleration
+    "Remainder after static head and acceleration: friction plus form plus anything else the TRANSFORM flow model contributes";
 
 equation
   assert(abs(sum(Vs_nodes) - V) < 1e-12*max(V, 1e-9), "The node volumes of " + getInstanceName()

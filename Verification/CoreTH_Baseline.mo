@@ -22,6 +22,8 @@ model CoreTH_Baseline
     "Imposed core inlet temperature";
   parameter SI.Power Q_core=8e6
     "Fixed thermal test power. This is a TH verification condition, not a Jeong transient validation target";
+  parameter SI.Power Q_energyNorm=8e6
+    "Scale used to normalize the energy residual when Q_core = 0. Not a test condition and not a tolerance";
   parameter SI.AbsolutePressure p_out=geometry.p_system
     "Outlet pressure boundary condition";
   parameter SI.Time t_settle=300
@@ -115,8 +117,35 @@ model CoreTH_Baseline
     "Specific enthalpy leaving the core";
   SI.Power Q_toFluid=m_flow_in*(h_out - h_in)
     "Net enthalpy rise of the fuel salt";
-  SIadd.NonDim err_energy=(Q_toFluid - Q_core)/Q_core
+  /* Normalizing by Q_core alone divides by zero in the Q_core = 0 case, so the residual is
+     scaled by Q_energyNorm whenever the test power is zero. At the 8 MW condition Q_norm is
+     Q_core and err_energy is exactly what it was before. */
+  final parameter SI.Power Q_norm=if abs(Q_core) > 0 then abs(Q_core) else Q_energyNorm
+    "Scale of the energy residual";
+  SIadd.NonDim err_energy=(Q_toFluid - Q_core)/Q_norm
     "Relative steady-state energy residual; target is zero";
+  SI.Temperature T_out=core.Ts[nAxial] "Fuel salt temperature leaving the last axial cell";
+  SI.TemperatureDifference dT_core=T_out - T_in
+    "Core temperature rise actually calculated by the model";
+
+  /* ---------------- Momentum-balance decomposition ----------------
+     Taken from the pipe, which forms the static term from the LOCAL density of every node.
+     dp_nonstatic is not called a friction loss: it still contains the acceleration term. */
+  SI.Pressure dp_gravity_local=core.dp_gravity_local
+    "PRIMARY static term, local node densities";
+  SI.Pressure dp_gravity_bulk=core.dp_gravity_bulk
+    "CROSS-CHECK ONLY: same term with a single average density";
+  SI.Pressure dp_nonstatic=core.dp_nonstatic
+    "dp_total minus the local static head; contains acceleration, friction and form";
+  SI.Pressure dp_acceleration=core.dp_acceleration
+    "Momentum-flux change, computed independently of the TRANSFORM flow model";
+  SI.Pressure dp_residual=core.dp_residual
+    "Remainder: friction plus form plus anything else the flow model contributes";
+  SIadd.NonDim err_gravityForm=(dp_gravity_local - dp_gravity_bulk)/max(abs(dp_gravity_local),
+      1)
+    "Relative gap between the local-density and average-density static terms";
+  SI.Time tau_core_equivalent=geometry.V_channels*core.d_bulk/max(abs(m_flow_in), 1e-9)
+    "Transit time of the equivalent channel region at the calculated bulk density";
 
   SI.DynamicViscosity mu_in=Medium.dynamicViscosity(
       Medium.setState_pT(p_in_actual, T_in)) "Fuel viscosity at the inlet state";

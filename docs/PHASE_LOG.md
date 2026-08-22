@@ -1736,3 +1736,120 @@ its own uniform `Q_gens`, so it touches neither the closure nor `corePowerShape`
 simulation were **not** performed. Every number above is an independent calculation outside
 Modelica, obtained by re-implementing the model's own expressions. Edited files were checked for
 Modelica string and comment balance.
+
+---
+
+## Phase 14 — Stage 2: 1-D core TH verification (zero power and 8 MW)
+
+**Scope:** verification diagnostics only. No property, geometry, pump or HX value changed, no
+assertion tolerance relaxed, nothing tuned toward Jeong or toward an experiment.
+
+### A. Changed files
+
+| File | Change | Reason |
+|---|---|---|
+| `Components/SaltPipe.mo` | added `ds`, `dp_total`, `dp_gravity_local`, `d_bulk`, `dp_gravity_bulk`, `dp_nonstatic`, `G`, `dp_acceleration`, `dp_residual` | Stage 2-4: momentum decomposition with **local** node densities. Purely additive — no equation changed |
+| `Verification/CoreTH_Baseline.mo` | `Q_energyNorm` / `Q_norm`; `T_out`, `dT_core`; the five `dp_*` diagnostics; `err_gravityForm`; `tau_core_equivalent` | Stage 2-4/2-7, and a **divide-by-zero defect**: `err_energy = (Q_toFluid − Q_core)/Q_core` is undefined at `Q_core = 0` |
+| `Verification/CoreTH_ZeroPower.mo` | new, `extends CoreTH_Baseline(Q_core=0, tol_energy=1e-6)` | Stage 2-1, as a parameterized case rather than a rewrite |
+| `Verification/package.order` | registered | class would not load otherwise |
+
+`Q_norm = if abs(Q_core) > 0 then abs(Q_core) else Q_energyNorm`. At 8 MW `err_energy` is
+bit-for-bit what it was; `tol_energy` is untouched at 1e-3 there and **tightened** to 1e-6 in the
+zero-power case, since no physical power input exists to hide a residual behind.
+
+### Naming
+
+`dp_nonstatic` is used, **not** `dp_irreversible` or `dp_friction`: it is what remains after the
+static head and still contains acceleration, friction and form. `dp_residual` isolates
+friction+form, but only as a remainder — it is not read out of the TRANSFORM flow model.
+
+### Stage 2-5. TRANSFORM pressure-loss audit — **BLOCKED_NOT_RUN**
+
+`SinglePhase_Developed_2Region_NumStable` could **not** be inspected: no TRANSFORM library and
+no MSL exist anywhere on this filesystem (searched; only the repository's own `.mo` files are
+present). Its internal friction/form/acceleration split and sign conventions are therefore
+**unknown and were not guessed at**. The decomposition above is built only from quantities whose
+existence is confirmed in this repository's own code (`pipe.mediums`, already used by
+`SaltPipe.Ts`), plus independent formulas. Closing 2-5 needs the TRANSFORM source.
+
+### B. Zero-power results — Q = 0 W
+
+All values are **independent calculation**, not Modelica output.
+
+| Quantity | Modelica | Independent | Difference | Status |
+|---|---:|---:|---:|---|
+| `m_flow` | BLOCKED_NOT_RUN | 168 kg/s (imposed) | — | BLOCKED_NOT_RUN |
+| `Re` | BLOCKED_NOT_RUN | 812.24 | — | BLOCKED_NOT_RUN |
+| `T_out − T_in` | BLOCKED_NOT_RUN | 0 K exactly | — | BLOCKED_NOT_RUN |
+| `dp_total` | BLOCKED_NOT_RUN | 35 499.39 Pa | — | BLOCKED_NOT_RUN |
+| `dp_gravity_local` | BLOCKED_NOT_RUN | 35 016.15 Pa | — | BLOCKED_NOT_RUN |
+| `dp_gravity_bulk` | BLOCKED_NOT_RUN | 35 016.15 Pa | 0 (uniform ρ) | BLOCKED_NOT_RUN |
+| `dp_acceleration` | BLOCKED_NOT_RUN | 0.0000 Pa | — | BLOCKED_NOT_RUN |
+| `dp_nonstatic` | BLOCKED_NOT_RUN | 483.24 Pa | — | BLOCKED_NOT_RUN |
+
+At uniform temperature the local-density and average-density static terms are identical by
+construction, which is exactly why this case is run first: it calibrates the diagnostic before
+the heated case relies on it.
+
+### C. 8 MW results
+
+| Quantity | Modelica | Independent / reference | Difference | Status |
+|---|---:|---:|---:|---|
+| `m_flow` | BLOCKED_NOT_RUN | 168 kg/s (imposed) | — | BLOCKED_NOT_RUN |
+| `Q_toFluid` | BLOCKED_NOT_RUN | 8.000 MW expected | — | BLOCKED_NOT_RUN |
+| `err_energy` | BLOCKED_NOT_RUN | 0 expected, tol 1e-3 | — | BLOCKED_NOT_RUN |
+| `T_out` | BLOCKED_NOT_RUN | 931.695 K | — | BLOCKED_NOT_RUN |
+| `ΔT` | BLOCKED_NOT_RUN | 23.6951 K | — | BLOCKED_NOT_RUN |
+| `dp_total` | BLOCKED_NOT_RUN | 35 366.87 Pa | — | BLOCKED_NOT_RUN |
+| `dp_gravity_local` | BLOCKED_NOT_RUN | 34 910.01 Pa | — | BLOCKED_NOT_RUN |
+| `dp_acceleration` | BLOCKED_NOT_RUN | 0.7295 Pa | — | BLOCKED_NOT_RUN |
+
+`ΔT = Q/(ṁ·cp)` is a **cross-check only**; the model's own energy balance is on enthalpy,
+`Q_toFluid = ṁ(h_out − h_in)`.
+
+### D. Momentum decomposition (independent calculation)
+
+```
+                      zero power            8 MW
+dp_gravity_local     35016.15 Pa        34910.01 Pa    (local node densities, PRIMARY)
+dp_friction            483.24 Pa          456.14 Pa    (laminar 64/Re, local properties)
+dp_form                  0.00 Pa            0.00 Pa    (Ks = 0)
+dp_acceleration          0.0000 Pa           0.7295 Pa (G^2(1/d_out - 1/d_in), G = 512.542)
+                     ------------       ------------
+dp_total             35499.39 Pa        35366.87 Pa
+```
+
+- gravity is **98.7 %** of the total, so `dp_total` alone verifies almost nothing about the
+  friction closure — which is why the decomposition was added.
+- heating relieves **106.14 Pa** of static head between the two cases.
+- the acceleration term is **0.16 % of `dp_nonstatic`** at 8 MW: small, but **computed rather
+  than assumed zero**, as required.
+- `dp_gravity_local` and `dp_gravity_bulk` agree to 1e-5 % at 8 MW because the axial temperature
+  profile is linear and the density correlation is linear in T. That is a property of this
+  case, not a general result, and the local form stays primary.
+
+### E. Status
+
+```
+Mass conservation:            BLOCKED_NOT_RUN  (assert present, tolerance unchanged)
+Energy conservation:          BLOCKED_NOT_RUN  (enthalpy-based; divide-by-zero defect fixed)
+Zero-power isothermal:        BLOCKED_NOT_RUN  (new assert, tol_isothermal = 1e-3 K)
+Reynolds number:              PASS  (independent calculation: 812.24 vs 812 reference, +0.03 %)
+Gravity pressure term:        PASS  (independent calculation; local and bulk forms agree at uniform T)
+Pressure-loss decomposition:  OPEN  (TRANSFORM internal split not inspectable — Stage 2-5 BLOCKED)
+Acceleration term:            PASS  (independent calculation: 0 Pa cold, 0.7295 Pa at 8 MW)
+Modelica compile:             BLOCKED_NOT_RUN
+Modelica simulation:          BLOCKED_NOT_RUN
+```
+
+Nothing above is claimed as a Modelica result. The Reynolds, gravity and acceleration rows are
+marked PASS as **independent calculations against the stated reference values**, not as
+simulation agreement.
+
+### Next blocker
+
+1. No Modelica toolchain — every conservation assert in this stage is unexecuted.
+2. Stage 2-5 needs the TRANSFORM source to close the friction/form split.
+3. `SaltPipe.pipe.mediums[i].d` is used by the new diagnostics. `pipe.mediums.T` is already used
+   by the existing `Ts`, so the access path is sound, but it has not been compiled — first
+   `checkModel` should look there.
